@@ -37,22 +37,22 @@ namespace seahorn
     }
   }
 
-  void HornClauseDB::buildCallGraph () 
+  void HornDBCallGraph::buildCallGraph ()
   {
     // indexes must be first computed
-    buildIndexes ();
+    db.buildIndexes ();
     
     for (auto p: getRelations ()) 
     {
       // -- callees
-      expr_set_type callees;
+      HornClauseDB::expr_set_type callees;
       const horn_set_type& uses = use(p);
       for (const HornRule* r: uses)
       { callees.insert(bind::fname(r->head())); }
       m_callees.insert(std::make_pair(p, callees));
 
       // -- callers
-      expr_set_type callers;
+      HornClauseDB::expr_set_type callers;
       const horn_set_type& defs = def(p);
       for (const HornRule* r: defs)
         filter (r->body (), HornClauseDB::IsRelation(*this), 
@@ -79,22 +79,26 @@ namespace seahorn
           });
     }
 
-    // XXX: we are looking for a predicate that corresponds to the
-    // entry block of main. It is not enough to search for a predicate
-    // with no callers since predicates from each function entry won't
-    // have callers.
-    for (auto p: getRelations ()) 
-    {
-      Expr fname = bind::fname(p);
-      std::string sname = boost::lexical_cast<std::string> (fname);
-      if (boost::starts_with(sname, "main") && callers(p).size() == 0) { 
-        m_cg_entry = p;
-        break;
-      }
-    }
+  }
 
-    LOG("horn-cg", 
-        errs () << "Entry=" << *(bind::fname(m_cg_entry)) << "\n";);
+  void HornDBCallGraph::searchMainEntry()
+  {
+	  // XXX: we are looking for a predicate that corresponds to the
+	  // entry block of main. It is not enough to search for a predicate
+	  // with no callers since predicates from each function entry won't
+	  // have callers.
+	  for (auto p: getRelations ())
+	  {
+		Expr fname = bind::fname(p);
+		std::string sname = boost::lexical_cast<std::string> (fname);
+		if (boost::starts_with(sname, "main") && callers(p).size() == 0) {
+		  m_cg_entry = p;
+		  break;
+		}
+	  }
+
+	  LOG("horn-cg",
+		  errs () << "Entry=" << *(bind::fname(m_cg_entry)) << "\n";);
   }
 
   const ExprVector &HornClauseDB::getVars () const

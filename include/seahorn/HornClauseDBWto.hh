@@ -63,7 +63,7 @@ namespace seahorn
 
       Stats::resume ("wto");
 
-      m_db.buildCallGraph();
+      buildCallGraph();
 
       if (!m_db.hasEntry()) { 
         errs () << "wto requires an entry point to the call graph\n";
