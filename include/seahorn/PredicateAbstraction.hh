@@ -14,6 +14,45 @@
 namespace seahorn
 {
 	using namespace llvm;
+
+	class HornDbModel
+	{
+	private:
+		ExprMap predToSolutions;
+	public:
+		HornDbModel() {}
+		HornDbModel(HornClauseDB &db, ZFixedPoint<EZ3> &fp)
+		{
+			ExprVector all_preds_in_DB;
+			for(HornRule r : db.getRules())
+			{
+				Expr pred = r.head();
+				all_preds_in_DB.push_back(pred);
+			}
+			for(Expr pred : all_preds_in_DB)
+			{
+				Expr solution = fp.getCoverDelta(pred);
+				predToSolutions.insert(std::pair<Expr, Expr>(bind::fname(pred), solution));
+			}
+		}
+		HornDbModel(ExprMap model) : predToSolutions(model) {}
+		virtual ~HornDbModel(){}
+		ExprMap& getRelToSolutionMap() {return predToSolutions;}
+		void setRelToSolutionMap(ExprMap map) {predToSolutions = map;}
+	};
+
+	class HornModelConverter
+	{
+	private:
+		ExprMap boolVarToTermMap;
+	public:
+		HornModelConverter() {}
+		virtual ~HornModelConverter() {}
+		// converts a model from one database to another. returns false on failure.
+		virtual bool convert (HornDbModel &in, HornDbModel &out, std::map<Expr, Expr> &newToOldPredMap);
+		ExprMap& getBoolToTermMap() {return boolVarToTermMap;}
+	};
+
 	class PredicateAbstraction : public llvm::ModulePass
 	{
 		std::unique_ptr<ufo::ZFixedPoint <ufo::EZ3> >  m_fp;
@@ -28,12 +67,13 @@ namespace seahorn
 
 	private:
 	    static std::map<Expr, Expr> oldToNewPredMap;
+	    static std::map<Expr, Expr> newToOldPredMap;
 	    static std::map<Expr, ExprVector> currentCandidates;
 
 	public:
 	    void guessCandidate(HornClauseDB &db);
 	    ExprVector relToCand(Expr fdecl);
-	    HornClauseDB runOnDB(HornClauseDB &db);
+	    HornClauseDB runOnDB(HornClauseDB &db, HornModelConverter &converter);
 	    Expr fAppToCandApp(Expr fapp);
 	    Expr applyArgsToBvars(Expr cand, Expr fapp);
 	    ExprMap getBvarsToArgsMap(Expr fapp);
@@ -44,6 +84,8 @@ namespace seahorn
 
 	    template<typename OutputIterator>
 	    void get_all_bvars (Expr e, OutputIterator out);
+
+	    bool hasBvarInRule(HornRule r, HornClauseDB &db);
 
 	    ufo::ZFixedPoint<ufo::EZ3>& getZFixedPoint () {return *m_fp;}
 		void releaseMemory ()
