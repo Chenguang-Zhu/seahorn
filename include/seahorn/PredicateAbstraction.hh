@@ -77,6 +77,9 @@ namespace seahorn
 		void generateAbstractRules(HornClauseDB &db, HornClauseDB &new_DB, PredAbsHornModelConverter &converter);
 		void generateAbstractQueries(HornClauseDB &db, HornClauseDB &new_DB);
 		void printInvars(HornClauseDB &db, HornDbModel &origModel);
+
+		ExprVector applyTemplatesFromExperimentFile(Expr fdecl, std::string filepath);
+		void parseLemmasFromExpFile(Expr bvar, ExprVector& lemmas, std::string filepath);
 	};
 
 	class PredicateAbstraction : public llvm::ModulePass
@@ -97,6 +100,8 @@ namespace seahorn
 		static Expr applyArgsToBvars(Expr cand, Expr fapp, std::map<Expr, ExprVector> currentCandidates);
 		static ExprMap getBvarsToArgsMap(Expr fapp, std::map<Expr, ExprVector> currentCandidates);
 		static Expr extractTransitionRelation(HornRule r, HornClauseDB &db);
+
+		static std::vector<std::string> split(std::string str,std::string pattern);
 
 		template<typename OutputIterator>
 		static void get_all_pred_apps (Expr e, HornClauseDB &db, OutputIterator out)

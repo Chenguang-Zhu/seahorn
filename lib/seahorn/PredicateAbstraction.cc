@@ -13,6 +13,8 @@
 #include <boost/logic/tribool.hpp>
 #include "seahorn/HornClauseDBWto.hh"
 #include <algorithm>
+#include <fstream>
+#include <iostream>
 
 #include "ufo/Stats.hh"
 
@@ -489,10 +491,81 @@ namespace seahorn
 	  {
 		  if(bind::isFdecl(rel))
 		  {
-			  ExprVector terms = relToCand(rel);
+			  //ExprVector terms = relToCand(rel);
+			  ExprVector terms = applyTemplatesFromExperimentFile(rel, "/home/chenguang/Desktop/seahorn/experiment/preds_temp");
 			  currentCandidates.insert(std::pair<Expr, ExprVector>(rel, terms));
 		  }
 	  }
+	}
+
+	ExprVector PredicateAbstractionAnalysis::applyTemplatesFromExperimentFile(Expr fdecl, std::string filepath)
+	{
+		ExprVector bvars;
+		ExprVector lemmas;
+
+		int bvar_count = 0;
+		for(int i=0; i<bind::domainSz(fdecl); i++)
+		{
+			if(isOpX<INT_TY>(bind::domainTy(fdecl, i)))
+			{
+				Expr bvar = bind::bvar(i, mk<INT_TY>(bind::domainTy(fdecl, i)->efac()));
+				bvars.push_back(bvar);
+				bvar_count ++;
+			}
+		}
+		Expr one = mkTerm<mpz_class> (1, fdecl->efac());
+		Expr zero = mkTerm<mpz_class> (0, fdecl->efac());
+		Expr two = mkTerm<mpz_class> (2, fdecl->efac());
+		if(bvar_count == 0)
+		{
+			lemmas.push_back(mk<TRUE>(fdecl->efac()));
+		}
+		else if(bvar_count == 1)
+		{
+			lemmas.push_back(mk<GEQ>(bvars[0], one));
+			lemmas.push_back(mk<LEQ>(bvars[0], one));
+			lemmas.push_back(mk<GEQ>(bvars[0], zero));
+			lemmas.push_back(mk<GEQ>(bvars[0], two));
+			lemmas.push_back(mk<LEQ>(bvars[0], two));
+			parseLemmasFromExpFile(bvars[0], lemmas, filepath);
+		}
+		else
+		{
+			for(int i=0; i<bvars.size(); i++)
+			{
+				lemmas.push_back(mk<GEQ>(bvars[i], one));
+				lemmas.push_back(mk<LEQ>(bvars[i], one));
+				lemmas.push_back(mk<GEQ>(bvars[i], zero));
+				lemmas.push_back(mk<GEQ>(bvars[i], two));
+				lemmas.push_back(mk<LEQ>(bvars[i], two));
+				parseLemmasFromExpFile(bvars[i], lemmas, filepath);
+			}
+		}
+		return lemmas;
+	}
+
+	void PredicateAbstractionAnalysis::parseLemmasFromExpFile(Expr bvar, ExprVector& lemmas, std::string filepath)
+	{
+		std::ifstream in(filepath);
+		std::string line;
+		if(in)
+		{
+			while (getline (in, line))
+			{
+				std::string op = HornDbUtils::split(line, ",")[0];
+				std::string number = HornDbUtils::split(line, ",")[1];
+				int value = std::atoi(number.c_str());
+				if(op == "LEQ") lemmas.push_back(mk<LEQ>(bvar, mkTerm<mpz_class>(value, bvar->efac())));
+				else if(op == "GEQ") lemmas.push_back(mk<GEQ>(bvar, mkTerm<mpz_class>(value, bvar->efac())));
+				else if(op == "LT") lemmas.push_back(mk<LT>(bvar, mkTerm<mpz_class>(value, bvar->efac())));
+				else if(op == "GT") lemmas.push_back(mk<GT>(bvar, mkTerm<mpz_class>(value, bvar->efac())));
+			}
+		}
+		else
+		{
+			errs() << "FILE NOT EXIST!\n";
+			return;
+		}
 	}
 
 	ExprVector PredicateAbstractionAnalysis::relToCand(Expr fdecl)
@@ -779,5 +852,25 @@ namespace seahorn
 			}
 		}
 		return false;
+	}
+
+	std::vector<std::string> HornDbUtils::split(std::string str,std::string pattern)
+	{
+		std::string::size_type pos;
+		std::vector<std::string> result;
+		str+=pattern;
+		int size=str.size();
+
+		for(int i=0; i<size; i++)
+		{
+			pos=str.find(pattern,i);
+			if(pos<size)
+			{
+				std::string s=str.substr(i,pos-i);
+				result.push_back(s);
+				i=pos+pattern.size()-1;
+			}
+		}
+		return result;
 	}
 }
