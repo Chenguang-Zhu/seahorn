@@ -81,6 +81,8 @@ namespace seahorn
 		new_db.loadZFixedPoint (fp, false);
 		boost::tribool result = fp.query ();
 
+		LOG("pabs-smt2", outs() << "SMT2: " << fp << "\n";);
+
 		if (result) outs () << "sat";
 		else if (!result)
 		{

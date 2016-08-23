@@ -28,6 +28,8 @@ while i<= string.atoi(pred_num) :
   # run seahorn
   res_out = result_dir + '/' + str(i) + '.res'
   res_err = err_dir + '/' + str(i) + '.err'
-  p = sub.Popen([seahorn_path + '/build/run/bin/sea', '--mem=-1', '-m64', 'pf', '--step=large', '-g', '--horn-global-constraints=true', '--track=mem', '--horn-stats', '--enable-nondet-init', '--strip-extern', '--externalize-addr-taken-functions', '--horn-singleton-aliases=true', '--devirt-functions', '--horn-ignore-calloc=false', '--enable-indvar', '--enable-loop-idiom', '--horn-make-undef-warning-error=false', '--inline', benchmark_path, '--horn-pred-abs'], stdout=open(res_out, 'w'), stderr=open(res_err, 'w'))
+  smt_out = seahorn_path + '/experiment/smt2/' + str(i) + '.smt2'
+  # p = sub.Popen([seahorn_path + '/build/run/bin/sea', '--mem=-1', '-m64', 'pf', '--step=large', '-g', '--horn-global-constraints=true', '--track=mem', '--horn-stats', '--enable-nondet-init', '--strip-extern', '--externalize-addr-taken-functions', '--horn-singleton-aliases=true', '--devirt-functions', '--horn-ignore-calloc=false', '--enable-indvar', '--enable-loop-idiom', '--horn-make-undef-warning-error=false', '--inline', benchmark_path, '--horn-pred-abs'], stdout=open(res_out, 'w'), stderr=open(res_err, 'w'))
+  p = sub.Popen([seahorn_path + '/build/run/bin/sea', '--mem=-1', '-m64', 'pf', '--step=large', '-g', '--horn-global-constraints=true', '--track=mem', '--horn-stats', '--enable-nondet-init', '--strip-extern', '--externalize-addr-taken-functions', '--horn-singleton-aliases=true', '--devirt-functions', '--horn-ignore-calloc=false', '--enable-indvar', '--enable-loop-idiom', '--horn-make-undef-warning-error=false', '--inline', benchmark_path, '--horn-pred-abs', '--log=pabs-smt2'], stdout=open(smt_out, 'w'), stderr=open(smt_out, 'w'))
   p.wait()
   i += 1
