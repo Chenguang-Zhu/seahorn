@@ -1,6 +1,7 @@
 #include "seahorn/HornSolver.hh"
 #include "seahorn/HornifyModule.hh"
 #include "seahorn/HornClauseDBTransf.hh"
+#include "seahorn/HornDbModel.hh"
 
 #include "llvm/IR/Function.h"
 #include "llvm/Support/CommandLine.h"
@@ -95,8 +96,12 @@ namespace seahorn
          if (m_result || !m_result) errs () << fp.getAnswer () << "\n";);
 
 
-    if (PrintAnswer && !m_result)
-      printInvars (M);
+    if (PrintAnswer && !m_result) //printInvars (M);
+    {
+    	HornDbModel dbModel;
+    	initDBModelFromFP(dbModel, db, fp);
+    	printInvars(db, dbModel);
+    }
     else if (PrintAnswer && m_result)
       printCex ();
 
@@ -215,6 +220,40 @@ namespace seahorn
     }
     Stats::uset ("NumOfBlocksWithInvariants", numBlocks);
     Stats::uset ("SizeOfInvariants", (allInvars ? dagSize(allInvars) : 0));
+  }
+
+  void HornSolver::initDBModelFromFP(HornDbModel &dbModel, HornClauseDB &db, ZFixedPoint<EZ3> &fp)
+  {	//How to iterate over all predicates in DB?
+	ExprVector all_preds_in_DB;
+	for(HornRule r : db.getRules())
+	{
+		Expr pred = r.head();
+		all_preds_in_DB.push_back(pred);
+	}
+	for(Expr pred : all_preds_in_DB)
+	{
+		LOG("pabs-debug", outs() << "REL: " << *(bind::fname(pred)) << "\n";);
+		Expr solution = fp.getCoverDelta(pred);
+		LOG("pabs-debug", outs() << "SOLUTION: " << *solution << "\n";);
+		dbModel.addDef(pred, solution);
+	}
+  }
+
+  void HornSolver::printInvars(HornClauseDB &db, HornDbModel &origModel)
+  {
+	//How to iterate all predicates?
+	ExprMap relToAppMap;
+	for(HornRule r : db.getRules())
+	{
+		Expr pred = r.head();
+		relToAppMap.insert(std::pair<Expr, Expr>(bind::fname(pred), pred));
+	}
+	for(ExprMap::iterator it = relToAppMap.begin(); it!=relToAppMap.end(); ++it)
+	{
+		Expr pred = it->second;
+		Expr def = origModel.getDef(pred);
+		outs() << *bind::fname(bind::fname(pred)) << ": " << *def << "\n";
+	}
   }
 
 

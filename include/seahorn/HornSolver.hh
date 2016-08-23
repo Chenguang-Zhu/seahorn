@@ -4,6 +4,7 @@
 #include "llvm/Pass.h"
 #include "llvm/IR/Module.h"
 #include "boost/logic/tribool.hpp"
+#include "seahorn/HornDbModel.hh"
 
 #include "ufo/Smt/EZ3.hh"
 
@@ -20,7 +21,11 @@ namespace seahorn
     void printInvars (Function &F);
     void printInvars (Module &M);
     void printCex ();
-    void estimateSizeInvars (Module &M);    
+    void estimateSizeInvars (Module &M);
+
+    void initDBModelFromFP(HornDbModel &dbModel, HornClauseDB &db, ZFixedPoint<EZ3> &fp);
+    void printInvars(HornClauseDB &db, HornDbModel &origModel);
+
   public:
     static char ID;
     
@@ -34,7 +39,6 @@ namespace seahorn
     
     boost::tribool getResult () {return m_result;}
     void releaseMemory () {m_fp.reset (nullptr);}
-    
     
   };
 
