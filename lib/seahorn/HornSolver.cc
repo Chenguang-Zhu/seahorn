@@ -96,11 +96,11 @@ namespace seahorn
          if (m_result || !m_result) errs () << fp.getAnswer () << "\n";);
 
 
-    if (PrintAnswer && !m_result) //printInvars (M);
+    if (PrintAnswer && !m_result)
     {
     	HornDbModel dbModel;
     	initDBModelFromFP(dbModel, db, fp);
-    	printInvars(db, dbModel);
+    	printInvars(M, dbModel);
     }
     else if (PrintAnswer && m_result)
       printCex ();
@@ -154,44 +154,6 @@ namespace seahorn
     
   }
 
-  void HornSolver::printInvars (Module &M)
-  {
-    for (auto &F : M) printInvars (F);
-  }
-
-  void HornSolver::printInvars (Function &F)
-  {
-    if (F.isDeclaration ()) return;
-
-    HornifyModule &hm = getAnalysis<HornifyModule> ();
-    outs () << "Function: " << F.getName () << "\n";
-
-    // -- not used for now
-    Expr summary = hm.summaryPredicate (F);
-    
-    ZFixedPoint<EZ3> fp = *m_fp;
-
-    for (auto &BB : F)
-    {
-      if (!hm.hasBbPredicate (BB)) continue;
-
-      Expr bbPred = hm.bbPredicate (BB);
-
-      outs () << *bind::fname (bbPred) << ":";
-      const ExprVector &live = hm.live (BB);
-      Expr invars = fp.getCoverDelta (bind::fapp (bbPred, live));
-
-      if (isOpX<AND> (invars))
-      {
-        outs () << "\n\t";
-        for (size_t i = 0; i < invars->arity (); ++i)
-          outs () << "\t" << *invars->arg (i) << "\n";
-      }
-      else
-        outs () << " " << *invars << "\n";
-    }
-  }
-
   void HornSolver::estimateSizeInvars (Module &M)
   {
     HornifyModule &hm = getAnalysis<HornifyModule> ();
@@ -239,21 +201,43 @@ namespace seahorn
 	}
   }
 
-  void HornSolver::printInvars(HornClauseDB &db, HornDbModel &origModel)
+  void HornSolver::printInvars (Module &M, HornDbModel &origModel)
   {
-	//How to iterate all predicates?
-	ExprMap relToAppMap;
-	for(HornRule r : db.getRules())
-	{
-		Expr pred = r.head();
-		relToAppMap.insert(std::pair<Expr, Expr>(bind::fname(pred), pred));
-	}
-	for(ExprMap::iterator it = relToAppMap.begin(); it!=relToAppMap.end(); ++it)
-	{
-		Expr pred = it->second;
-		Expr def = origModel.getDef(pred);
-		outs() << *bind::fname(bind::fname(pred)) << ": " << *def << "\n";
-	}
+ 	  for (auto &F : M) printInvars (F, origModel);
+  }
+
+  void HornSolver::printInvars(Function &F, HornDbModel &origModel)
+  {
+	  if (F.isDeclaration ()) return;
+
+	  HornifyModule &hm = getAnalysis<HornifyModule> ();
+	  outs () << "Function: " << F.getName () << "\n";
+
+	  // -- not used for now
+	  Expr summary = hm.summaryPredicate (F);
+
+	  ZFixedPoint<EZ3> fp = *m_fp;
+
+	  for (auto &BB : F)
+	  {
+		if (!hm.hasBbPredicate (BB)) continue;
+
+		Expr bbPred = hm.bbPredicate (BB);
+
+		outs () << *bind::fname (bbPred) << ":";
+		const ExprVector &live = hm.live (BB);
+		//Expr invars = fp.getCoverDelta (bind::fapp (bbPred, live));
+		Expr invars = origModel.getDef(bind::fapp(bbPred, live));
+
+		if (isOpX<AND> (invars))
+		{
+		  outs () << "\n\t";
+		  for (size_t i = 0; i < invars->arity (); ++i)
+			outs () << "\t" << *invars->arg (i) << "\n";
+		}
+		else
+		  outs () << " " << *invars << "\n";
+	  }
   }
 
 

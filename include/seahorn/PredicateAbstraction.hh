@@ -17,6 +17,24 @@ namespace seahorn
 {
 	using namespace llvm;
 
+	class PredAbsHornModelConverter : public HornModelConverter
+	{
+	private:
+		std::map<Expr, ExprMap> relToBoolToTermMap;
+		std::map<Expr, Expr> newToOldPredMap;
+		HornClauseDB* abs_db;
+
+		std::map<Expr, ExprMap>& getRelToBoolToTermMap() {return relToBoolToTermMap;}
+	public:
+		PredAbsHornModelConverter() {}
+		virtual ~PredAbsHornModelConverter() {}
+		bool convert (HornDbModel &in, HornDbModel &out);
+
+		void addRelToBoolToTerm(Expr rel, ExprMap &boolToTermMap) {relToBoolToTermMap.insert(std::pair<Expr, ExprMap>(rel, boolToTermMap));}
+		void setNewToOldPredMap(std::map<Expr, Expr> &newToOldMap) {newToOldPredMap = newToOldMap;}
+		void setAbsDB(HornClauseDB &db) {abs_db = &db;}
+	};
+
 	class PredicateAbstractionAnalysis
 	{
 	private:
@@ -24,28 +42,23 @@ namespace seahorn
 	    std::map<Expr, Expr> newToOldPredMap;
 	    std::map<Expr, ExprVector> currentCandidates;
 
-	    std::unique_ptr<ufo::ZFixedPoint <ufo::EZ3> >  m_fp;
 	    HornifyModule& m_hm;
-
-	    void initAbsModelFromFP(HornDbModel &absModel, HornClauseDB &db, ZFixedPoint<EZ3> &fp);
 
 	public:
 	    PredicateAbstractionAnalysis(HornifyModule &hm) : m_hm(hm) {}
-	    ~PredicateAbstractionAnalysis() {m_fp.reset (nullptr);}
+	    ~PredicateAbstractionAnalysis() {}
 
-	    ufo::ZFixedPoint<ufo::EZ3>& getZFixedPoint () {return *m_fp;}
-
-	    void runAnalysis();
 		void guessCandidate(HornClauseDB &db);
 		ExprVector relToCand(Expr fdecl);
 		HornClauseDB generateAbstractDB(HornClauseDB &db, PredAbsHornModelConverter &converter);
 		void generateAbstractRelations(HornClauseDB &db, HornClauseDB &new_DB, PredAbsHornModelConverter &converter);
 		void generateAbstractRules(HornClauseDB &db, HornClauseDB &new_DB, PredAbsHornModelConverter &converter);
 		void generateAbstractQueries(HornClauseDB &db, HornClauseDB &new_DB);
-		void printInvars(HornClauseDB &db, HornDbModel &origModel);
 
 		ExprVector applyTemplatesFromExperimentFile(Expr fdecl, std::string filepath);
 		void parseLemmasFromExpFile(Expr bvar, ExprVector& lemmas, std::string filepath);
+
+		void initAbsModelFromFP(HornDbModel &absModel, HornClauseDB &db, ZFixedPoint<EZ3> &fp);
 	};
 
 	class PredicateAbstraction : public llvm::ModulePass
@@ -55,9 +68,17 @@ namespace seahorn
 
 	    PredicateAbstraction() : ModulePass(ID) {}
 	    virtual ~PredicateAbstraction() {}
+	    void releaseMemory () {m_fp.reset (nullptr);}
 	    virtual bool runOnModule (Module &M);
 	    virtual void getAnalysisUsage (AnalysisUsage &AU) const;
 	    virtual const char* getPassName () const {return "PredicateAbstraction";}
+
+	    ufo::ZFixedPoint<ufo::EZ3>& getZFixedPoint () {return *m_fp;}
+
+	    void printInvars(Function &F, HornDbModel &origModel);
+	    void printInvars(Module &M, HornDbModel &origModel);
+	private:
+	    std::unique_ptr<ufo::ZFixedPoint <ufo::EZ3> >  m_fp;
 	};
 }
 

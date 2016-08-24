@@ -30,40 +30,27 @@ namespace seahorn
 	bool PredicateAbstraction::runOnModule (Module &M)
 	{
 		HornifyModule &hm = getAnalysis<HornifyModule> ();
-
 		PredicateAbstractionAnalysis pabs(hm);
-		pabs.runAnalysis();
 
-		return false;
-	}
-
-	void PredicateAbstraction::getAnalysisUsage (AnalysisUsage &AU) const
-	{
-		AU.addRequired<HornifyModule> ();
-		AU.setPreservesAll();
-	}
-
-	void PredicateAbstractionAnalysis::runAnalysis()
-	{
 		Stats::resume ("Pabs solve");
 		//load the Horn clause database
-		auto &db = m_hm.getHornClauseDB ();
+		auto &db = hm.getHornClauseDB ();
 		db.buildIndexes ();
 
 		//guess candidates
-		guessCandidate(db);
+		pabs.guessCandidate(db);
 
 		HornDbModel oldModel;
 
 		PredAbsHornModelConverter converter;
 
 		//run main algorithm
-		HornClauseDB new_db = generateAbstractDB(db, converter);
+		HornClauseDB new_db = pabs.generateAbstractDB(db, converter);
 
 		//initialize spacer based on new DB
-		m_fp.reset (new ZFixedPoint<EZ3> (m_hm.getZContext ()));
+		m_fp.reset (new ZFixedPoint<EZ3> (hm.getZContext ()));
 		ZFixedPoint<EZ3> &fp = *m_fp;
-		ZParams<EZ3> params (m_hm.getZContext ());
+		ZParams<EZ3> params (hm.getZContext ());
 		params.set (":engine", "spacer");
 		// -- disable slicing so that we can use cover
 		params.set (":xform.slice", false);
@@ -90,16 +77,63 @@ namespace seahorn
 		{
 			outs() << "unsat\n";
 			HornDbModel absModel;
-			initAbsModelFromFP(absModel, new_db, fp);
+			pabs.initAbsModelFromFP(absModel, new_db, fp);
 
 			converter.convert(absModel, oldModel);
 			LOG("pabs-debug", outs() << "FINAL RESULT:\n";);
 			//Print invariants
-			printInvars(db, oldModel);
+			printInvars(M, oldModel);
 		}
 		else outs () << "unknown";
 		outs () << "\n";
 		Stats::stop("Pabs solve");
+
+		return false;
+	}
+
+	void PredicateAbstraction::getAnalysisUsage (AnalysisUsage &AU) const
+	{
+		AU.addRequired<HornifyModule> ();
+		AU.setPreservesAll();
+	}
+
+	void PredicateAbstraction::printInvars (Module &M, HornDbModel &origModel)
+	{
+		 for (auto &F : M) printInvars (F, origModel);
+	}
+
+	void PredicateAbstraction::printInvars(Function &F, HornDbModel &origModel)
+	{
+		  if (F.isDeclaration ()) return;
+
+		  HornifyModule &hm = getAnalysis<HornifyModule> ();
+		  outs () << "Function: " << F.getName () << "\n";
+
+		  // -- not used for now
+		  Expr summary = hm.summaryPredicate (F);
+
+		  ZFixedPoint<EZ3> fp = *m_fp;
+
+		  for (auto &BB : F)
+		  {
+			if (!hm.hasBbPredicate (BB)) continue;
+
+			Expr bbPred = hm.bbPredicate (BB);
+
+			outs () << *bind::fname (bbPred) << ":";
+			const ExprVector &live = hm.live (BB);
+			//Expr invars = fp.getCoverDelta (bind::fapp (bbPred, live));
+			Expr invars = origModel.getDef(bind::fapp(bbPred, live));
+
+			if (isOpX<AND> (invars))
+			{
+			  outs () << "\n\t";
+			  for (size_t i = 0; i < invars->arity (); ++i)
+				outs () << "\t" << *invars->arg (i) << "\n";
+			}
+			else
+			  outs () << " " << *invars << "\n";
+		  }
 	}
 
 	void PredicateAbstractionAnalysis::initAbsModelFromFP(HornDbModel &absModel, HornClauseDB &db, ZFixedPoint<EZ3> &fp)
@@ -198,11 +232,11 @@ namespace seahorn
 			std::map<Expr, int> relOccurrenceTimesMap;
 
 			ExprVector pred_vector;
-			HornDbUtils::get_all_pred_apps(r.body(), db, std::back_inserter(pred_vector));
+			get_all_pred_apps(r.body(), db, std::back_inserter(pred_vector));
 			pred_vector.push_back(r.head());
 
 			//Deal with the rules that have no predicates
-			if(!HornDbUtils::hasBvarInRule(r, db, currentCandidates))
+			if(!util_hasBvarInRule(r, db, currentCandidates))
 			{
 				ExprMap replaceMap;
 				for(Expr pred : pred_vector)
@@ -230,7 +264,7 @@ namespace seahorn
 			//For each predicate in the body, construct new version of predicate.
 			Expr rule_body = r.body();
 			ExprVector body_pred_apps;
-			HornDbUtils::get_all_pred_apps(rule_body, db, std::back_inserter(body_pred_apps));
+			get_all_pred_apps(rule_body, db, std::back_inserter(body_pred_apps));
 			for(ExprVector::iterator it = body_pred_apps.begin(); it != body_pred_apps.end(); ++it)
 			{
 				Expr rule_body_pred = *it;
@@ -263,7 +297,7 @@ namespace seahorn
 				ExprMap boolToTermMap;
 				for(Expr term : currentCandidates.find(bind::fname(*it))->second)
 				{
-					Expr term_app = HornDbUtils::applyArgsToBvars(term, *it, currentCandidates);
+					Expr term_app = util_applyArgsToBvars(term, *it, currentCandidates);
 					Expr equal_expr = mk<IFF>(new_rule_body_pred->arg(index + 1), term_app);
 					//converter
 					boolToTermMap.insert(std::pair<Expr, Expr>(bind::bvar(index, mk<BOOL_TY>(term_app->efac())), term));
@@ -303,7 +337,7 @@ namespace seahorn
 				ExprMap boolToTermMap;
 				for(Expr term : currentCandidates.find(bind::fname(rule_head))->second)
 				{
-					Expr term_app = HornDbUtils::applyArgsToBvars(term, rule_head, currentCandidates);
+					Expr term_app = util_applyArgsToBvars(term, rule_head, currentCandidates);
 					Expr equal_expr = mk<IFF>(new_rule_head->arg(index + 1), term_app);
 					//converter
 					boolToTermMap.insert(std::pair<Expr, Expr>(bind::bvar(index, mk<BOOL_TY>(term_app->efac())), term));
@@ -316,7 +350,7 @@ namespace seahorn
 			}
 
 			//Extract the constraints
-			Expr constraints = HornDbUtils::extractTransitionRelation(r, db);
+			Expr constraints = util_extractTransitionRelation(r, db);
 			new_body_exprs.push_back(constraints);
 
 			//Construct new body
@@ -407,8 +441,8 @@ namespace seahorn
 		{
 			while (getline (in, line))
 			{
-				std::string op = HornDbUtils::split(line, ",")[0];
-				std::string number = HornDbUtils::split(line, ",")[1];
+				std::string op = util_split(line, ",")[0];
+				std::string number = util_split(line, ",")[1];
 				int value = std::atoi(number.c_str());
 				if(op == "LEQ") lemmas.push_back(mk<LEQ>(bvar, mkTerm<mpz_class>(value, bvar->efac())));
 				else if(op == "GEQ") lemmas.push_back(mk<GEQ>(bvar, mkTerm<mpz_class>(value, bvar->efac())));
@@ -459,57 +493,6 @@ namespace seahorn
 			Expr two = mkTerm<mpz_class> (2, fdecl->efac());//
 			bins.push_back(mk<GEQ>(bvars[0], two));//
 			bins.push_back(mk<LEQ>(bvars[0], two));//
-			//For test
-//			bins.push_back(mk<GEQ>(bvars[0], five));//
-//			bins.push_back(mk<GEQ>(bvars[0], six));//
-//			bins.push_back(mk<GEQ>(bvars[0], seven));//
-//			bins.push_back(mk<GEQ>(bvars[0], eight));//
-//			bins.push_back(mk<GEQ>(bvars[0], nine));//
-//			bins.push_back(mk<GEQ>(bvars[0], ten));//
-//			bins.push_back(mk<GEQ>(bvars[0], eleven));//
-//			bins.push_back(mk<GEQ>(bvars[0], twelve));//
-//			bins.push_back(mk<GEQ>(bvars[0], thirteen));//
-//			bins.push_back(mk<GEQ>(bvars[0], fourteen));//
-//			bins.push_back(mk<GEQ>(bvars[0], fifteen));//
-//			bins.push_back(mk<LEQ>(bvars[0], sixteen));//
-//			bins.push_back(mk<LEQ>(bvars[0], seventeen));//
-//			bins.push_back(mk<LEQ>(bvars[0], eighteen));//
-//			bins.push_back(mk<LEQ>(bvars[0], nineteen));//
-//			bins.push_back(mk<LEQ>(bvars[0], twenty));//
-//			bins.push_back(mk<LEQ>(bvars[0], twenty_one));//
-//			bins.push_back(mk<GT>(bvars[0], thirty));//
-//			bins.push_back(mk<GT>(bvars[0], fourty));//
-//			bins.push_back(mk<GT>(bvars[0], fifty));//
-//			bins.push_back(mk<GT>(bvars[0], sixty));//
-//			bins.push_back(mk<GT>(bvars[0], seventy));//
-//			bins.push_back(mk<GT>(bvars[0], eighty));//
-//			bins.push_back(mk<LT>(bvars[0], ninty));//
-//			bins.push_back(mk<LT>(bvars[0], thirty));//
-//			bins.push_back(mk<LEQ>(bvars[0], thirty));//
-//			bins.push_back(mk<LEQ>(bvars[0], fourty));//
-//			bins.push_back(mk<LEQ>(bvars[0], fifty));//
-//			bins.push_back(mk<LT>(bvars[0], fifty));//
-//			bins.push_back(mk<LT>(bvars[0], sixty));//
-//			bins.push_back(mk<LEQ>(bvars[0], one_hundred));//
-//			bins.push_back(mk<LEQ>(bvars[0], two_hundred));//
-//			bins.push_back(mk<LT>(bvars[0], five));//
-//			bins.push_back(mk<LT>(bvars[0], six));//
-//			bins.push_back(mk<LT>(bvars[0], seven));//
-//			bins.push_back(mk<LT>(bvars[0], eight));//
-//			bins.push_back(mk<LT>(bvars[0], nine));//
-//			bins.push_back(mk<LT>(bvars[0], ten));//
-//			bins.push_back(mk<LT>(bvars[0], eleven));//
-//			bins.push_back(mk<LT>(bvars[0], twelve));//
-//			bins.push_back(mk<LT>(bvars[0], thirteen));//
-//			bins.push_back(mk<LT>(bvars[0], fourteen));//
-//			bins.push_back(mk<LT>(bvars[0], fifteen));//
-//			bins.push_back(mk<LEQ>(bvars[0], three_hundred));//
-//			bins.push_back(mk<LEQ>(bvars[0], four_hundred));//
-//			bins.push_back(mk<LEQ>(bvars[0], five_hundred));//
-//			bins.push_back(mk<LEQ>(bvars[0], six_hundred));//
-//			bins.push_back(mk<LEQ>(bvars[0], seven_hundred));//
-//			bins.push_back(mk<LEQ>(bvars[0], eight_hundred));//
-//			bins.push_back(mk<LEQ>(bvars[0], nine_hundred));//
 		}
 		else // bvar_count >= 2
 		{
@@ -530,77 +513,104 @@ namespace seahorn
 				bins.push_back(mk<GEQ>(bvars[j], zero));
 				bins.push_back(mk<GEQ>(bvars[j], two));//
 				bins.push_back(mk<LEQ>(bvars[j], two));//
-				//For test
-//				bins.push_back(mk<GEQ>(bvars[j], five));//
-//				bins.push_back(mk<GEQ>(bvars[j], six));//
-//				bins.push_back(mk<GEQ>(bvars[j], seven));//
-//				bins.push_back(mk<GEQ>(bvars[j], eight));//
-//				bins.push_back(mk<GEQ>(bvars[j], nine));//
-//				bins.push_back(mk<GEQ>(bvars[j], ten));//
-//				bins.push_back(mk<GEQ>(bvars[j], eleven));//
-//				bins.push_back(mk<GEQ>(bvars[j], twelve));//
-//				bins.push_back(mk<GEQ>(bvars[j], thirteen));//
-//				bins.push_back(mk<GEQ>(bvars[j], fourteen));//
-//				bins.push_back(mk<GEQ>(bvars[j], fifteen));//
-//				bins.push_back(mk<LEQ>(bvars[j], sixteen));//
-//				bins.push_back(mk<LEQ>(bvars[j], seventeen));//
-//				bins.push_back(mk<LEQ>(bvars[j], eighteen));//
-//				bins.push_back(mk<LEQ>(bvars[j], nineteen));//
-//				bins.push_back(mk<LEQ>(bvars[j], twenty));//
-//				bins.push_back(mk<LEQ>(bvars[j], twenty_one));//
-//				bins.push_back(mk<GT>(bvars[j], thirty));//
-//				bins.push_back(mk<GT>(bvars[j], fourty));//
-//				bins.push_back(mk<GT>(bvars[j], fifty));//
-//				bins.push_back(mk<GT>(bvars[j], sixty));//
-//				bins.push_back(mk<GT>(bvars[j], seventy));//
-//				bins.push_back(mk<GT>(bvars[j], eighty));//
-//				bins.push_back(mk<LT>(bvars[j], ninty));//
-//				bins.push_back(mk<LT>(bvars[j], thirty));//
-//				bins.push_back(mk<LEQ>(bvars[j], thirty));//
-//				bins.push_back(mk<LEQ>(bvars[j], fourty));//
-//				bins.push_back(mk<LEQ>(bvars[j], fifty));//
-//				bins.push_back(mk<LT>(bvars[j], fifty));//
-//				bins.push_back(mk<LT>(bvars[j], sixty));//
-//				bins.push_back(mk<LEQ>(bvars[j], one_hundred));//
-//				bins.push_back(mk<LEQ>(bvars[j], two_hundred));//
-//				bins.push_back(mk<LT>(bvars[j], five));//
-//				bins.push_back(mk<LT>(bvars[j], six));//
-//				bins.push_back(mk<LT>(bvars[j], seven));//
-//				bins.push_back(mk<LT>(bvars[j], eight));//
-//				bins.push_back(mk<LT>(bvars[j], nine));//
-//				bins.push_back(mk<LT>(bvars[j], ten));//
-//				bins.push_back(mk<LT>(bvars[j], eleven));//
-//				bins.push_back(mk<LT>(bvars[j], twelve));//
-//				bins.push_back(mk<LT>(bvars[j], thirteen));//
-//				bins.push_back(mk<LT>(bvars[j], fourteen));//
-//				bins.push_back(mk<LT>(bvars[j], fifteen));//
-//				bins.push_back(mk<LEQ>(bvars[j], three_hundred));//
-//				bins.push_back(mk<LEQ>(bvars[j], four_hundred));//
-//				bins.push_back(mk<LEQ>(bvars[j], five_hundred));//
-//				bins.push_back(mk<LEQ>(bvars[j], six_hundred));//
-//				bins.push_back(mk<LEQ>(bvars[j], seven_hundred));//
-//				bins.push_back(mk<LEQ>(bvars[j], eight_hundred));//
-//				bins.push_back(mk<LEQ>(bvars[j], nine_hundred));//
 			}
 		}
 
 		return bins;
 	}
 
-	void PredicateAbstractionAnalysis::printInvars(HornClauseDB &db, HornDbModel &origModel)
+//	void PredicateAbstractionAnalysis::printInvars(HornClauseDB &db, HornDbModel &origModel)
+//	{
+//		//How to iterate all predicates?
+//		ExprMap relToAppMap;
+//		for(HornRule r : db.getRules())
+//		{
+//			Expr pred = r.head();
+//			relToAppMap.insert(std::pair<Expr, Expr>(bind::fname(pred), pred));
+//		}
+//		for(ExprMap::iterator it = relToAppMap.begin(); it!=relToAppMap.end(); ++it)
+//		{
+//			Expr pred = it->second;
+//			Expr def = origModel.getDef(pred);
+//			LOG("predabs", errs() << *bind::fname(bind::fname(pred)) << ": " << *def << "\n";);
+//		}
+//	}
+
+	bool PredAbsHornModelConverter::convert (HornDbModel &in, HornDbModel &out)
 	{
-		//How to iterate all predicates?
-		ExprMap relToAppMap;
-		for(HornRule r : db.getRules())
+		for(Expr abs_rel : abs_db->getRelations())
 		{
-			Expr pred = r.head();
-			relToAppMap.insert(std::pair<Expr, Expr>(bind::fname(pred), pred));
+			LOG("pabs-debug", outs() << "ABS REL: " << *abs_rel << "\n";);
+
+			Expr orig_rel = newToOldPredMap.find(abs_rel)->second;
+			LOG("pabs-debug", outs() << "ORIG REL: " << *orig_rel << "\n";);
+
+			ExprVector abs_arg_list;
+			for(int i=0; i<bind::domainSz(abs_rel); i++)
+			{
+				Expr boolVar = bind::boolConst(variant::variant(i, mkTerm<std::string>("b", orig_rel->efac())));
+				abs_arg_list.push_back(boolVar);
+			}
+			Expr abs_rel_app = bind::fapp(abs_rel, abs_arg_list);
+			LOG("pabs-debug", outs() << "ABS REL APP: " << *abs_rel_app << "\n";);
+
+			Expr abs_def_app = in.getDef(abs_rel_app);
+			LOG("pabs-debug", outs() << "ABS DEF APP: " << *abs_def_app << "\n";);
+
+			ExprMap boolVarToBvarMap;
+			ExprVector bools;
+			get_all_booleans(abs_def_app, std::back_inserter(bools));
+			for(Expr boolvar: bools)
+			{
+				Expr bool_bvar = bind::boolBVar(variant::variantNum(bind::fname(bind::fname(boolvar))), boolvar->efac());
+				boolVarToBvarMap.insert(std::pair<Expr,Expr>(boolvar, bool_bvar));
+			}
+			Expr abs_def = replace(abs_def_app, boolVarToBvarMap);
+			LOG("pabs-debug", outs() << "ABS DEF: " << *abs_def << "\n";);
+
+			Expr orig_def;
+			if(isOpX<TRUE>(abs_def) || isOpX<FALSE>(abs_def))
+			{
+				orig_def = abs_def;
+			}
+			else
+			{
+				ExprMap abs_bvar_to_term_map;
+				ExprVector abs_bvars;
+				get_all_bvars(abs_def, std::back_inserter(abs_bvars));
+				for(Expr abs_bvar : abs_bvars)
+				{
+					Expr term = (getRelToBoolToTermMap().find(orig_rel)->second).find(abs_bvar)->second;
+					abs_bvar_to_term_map.insert(std::pair<Expr, Expr>(abs_bvar, term));
+				}
+				orig_def = replace(abs_def, abs_bvar_to_term_map);
+			}
+			LOG("pabs-debug", outs() << "ORIG DEF: " << *orig_def << "\n";);
+
+			ExprVector orig_fapp_args;
+			for(int i=0; i<bind::domainSz(orig_rel); i++)
+			{
+				Expr arg_i_type = bind::domainTy(orig_rel, i);
+				Expr var = bind::fapp(bind::constDecl(variant::variant(i, mkTerm<std::string> ("V", orig_rel->efac ())), arg_i_type));
+				orig_fapp_args.push_back(var);
+			}
+			Expr orig_fapp = bind::fapp(orig_rel, orig_fapp_args);
+			LOG("pabs-debug", outs() << "ORIG FAPP: " << *orig_fapp << "\n";);
+
+			ExprVector bvars;
+			get_all_bvars(orig_def, std::back_inserter(bvars));
+			ExprMap bvarIdMap;
+			for(Expr bvar : bvars)
+			{
+				int bvar_id = bind::bvarId(bvar);
+				Expr bvar_type = bind::typeOf(bvar);
+				Expr var = bind::fapp(bind::constDecl(variant::variant(bvar_id, mkTerm<std::string> ("V", bvar->efac ())), bvar_type));
+				bvarIdMap.insert(std::pair<Expr, Expr>(bvar, var));
+			}
+			Expr orig_def_app = replace(orig_def, bvarIdMap);
+			LOG("pabs-debug", outs() << "ORIG DEF APP: " << *orig_def_app << "\n";);
+			out.addDef(orig_fapp, orig_def_app);
 		}
-		for(ExprMap::iterator it = relToAppMap.begin(); it!=relToAppMap.end(); ++it)
-		{
-			Expr pred = it->second;
-			Expr def = origModel.getDef(pred);
-			LOG("predabs", errs() << *bind::fname(bind::fname(pred)) << ": " << *def << "\n";);
-		}
+		return true;
 	}
 }

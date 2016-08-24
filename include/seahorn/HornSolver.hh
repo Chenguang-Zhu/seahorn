@@ -17,14 +17,12 @@ namespace seahorn
     boost::tribool m_result;
     std::unique_ptr<ufo::ZFixedPoint <ufo::EZ3> >  m_fp;
     
-    
-    void printInvars (Function &F);
-    void printInvars (Module &M);
     void printCex ();
     void estimateSizeInvars (Module &M);
 
     void initDBModelFromFP(HornDbModel &dbModel, HornClauseDB &db, ZFixedPoint<EZ3> &fp);
-    void printInvars(HornClauseDB &db, HornDbModel &origModel);
+    void printInvars(Function &F, HornDbModel &origModel);
+    void printInvars(Module &M, HornDbModel &origModel);
 
   public:
     static char ID;
