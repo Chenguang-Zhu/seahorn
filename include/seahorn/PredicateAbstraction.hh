@@ -57,8 +57,6 @@ namespace seahorn
 
 		ExprVector applyTemplatesFromExperimentFile(Expr fdecl, std::string filepath);
 		void parseLemmasFromExpFile(Expr bvar, ExprVector& lemmas, std::string filepath);
-
-		void initAbsModelFromFP(HornDbModel &absModel, HornClauseDB &db, ZFixedPoint<EZ3> &fp);
 	};
 
 	class PredicateAbstraction : public llvm::ModulePass

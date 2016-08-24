@@ -20,7 +20,6 @@ namespace seahorn
     void printCex ();
     void estimateSizeInvars (Module &M);
 
-    void initDBModelFromFP(HornDbModel &dbModel, HornClauseDB &db, ZFixedPoint<EZ3> &fp);
     void printInvars(Function &F, HornDbModel &origModel);
     void printInvars(Module &M, HornDbModel &origModel);
 

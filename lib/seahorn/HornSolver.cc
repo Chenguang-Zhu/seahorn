@@ -184,23 +184,6 @@ namespace seahorn
     Stats::uset ("SizeOfInvariants", (allInvars ? dagSize(allInvars) : 0));
   }
 
-  void HornSolver::initDBModelFromFP(HornDbModel &dbModel, HornClauseDB &db, ZFixedPoint<EZ3> &fp)
-  {	//How to iterate over all predicates in DB?
-	ExprVector all_preds_in_DB;
-	for(HornRule r : db.getRules())
-	{
-		Expr pred = r.head();
-		all_preds_in_DB.push_back(pred);
-	}
-	for(Expr pred : all_preds_in_DB)
-	{
-		LOG("pabs-debug", outs() << "REL: " << *(bind::fname(pred)) << "\n";);
-		Expr solution = fp.getCoverDelta(pred);
-		LOG("pabs-debug", outs() << "SOLUTION: " << *solution << "\n";);
-		dbModel.addDef(pred, solution);
-	}
-  }
-
   void HornSolver::printInvars (Module &M, HornDbModel &origModel)
   {
  	  for (auto &F : M) printInvars (F, origModel);

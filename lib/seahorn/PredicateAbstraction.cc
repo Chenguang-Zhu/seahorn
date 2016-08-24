@@ -77,7 +77,7 @@ namespace seahorn
 		{
 			outs() << "unsat\n";
 			HornDbModel absModel;
-			pabs.initAbsModelFromFP(absModel, new_db, fp);
+			initDBModelFromFP(absModel, new_db, fp);
 
 			converter.convert(absModel, oldModel);
 			LOG("pabs-debug", outs() << "FINAL RESULT:\n";);
@@ -134,23 +134,6 @@ namespace seahorn
 			else
 			  outs () << " " << *invars << "\n";
 		  }
-	}
-
-	void PredicateAbstractionAnalysis::initAbsModelFromFP(HornDbModel &absModel, HornClauseDB &db, ZFixedPoint<EZ3> &fp)
-	{	//How to iterate over all predicates in DB?
-		ExprVector all_preds_in_DB;
-		for(HornRule r : db.getRules())
-		{
-			Expr pred = r.head();
-			all_preds_in_DB.push_back(pred);
-		}
-		for(Expr pred : all_preds_in_DB)
-		{
-			LOG("pabs-debug", outs() << "REL: " << *(bind::fname(pred)) << "\n";);
-			Expr solution = fp.getCoverDelta(pred);
-			LOG("pabs-debug", outs() << "SOLUTION: " << *solution << "\n";);
-			absModel.addDef(pred, solution);
-		}
 	}
 
 	HornClauseDB PredicateAbstractionAnalysis::generateAbstractDB(HornClauseDB &db, PredAbsHornModelConverter &converter)
@@ -518,23 +501,6 @@ namespace seahorn
 
 		return bins;
 	}
-
-//	void PredicateAbstractionAnalysis::printInvars(HornClauseDB &db, HornDbModel &origModel)
-//	{
-//		//How to iterate all predicates?
-//		ExprMap relToAppMap;
-//		for(HornRule r : db.getRules())
-//		{
-//			Expr pred = r.head();
-//			relToAppMap.insert(std::pair<Expr, Expr>(bind::fname(pred), pred));
-//		}
-//		for(ExprMap::iterator it = relToAppMap.begin(); it!=relToAppMap.end(); ++it)
-//		{
-//			Expr pred = it->second;
-//			Expr def = origModel.getDef(pred);
-//			LOG("predabs", errs() << *bind::fname(bind::fname(pred)) << ": " << *def << "\n";);
-//		}
-//	}
 
 	bool PredAbsHornModelConverter::convert (HornDbModel &in, HornDbModel &out)
 	{

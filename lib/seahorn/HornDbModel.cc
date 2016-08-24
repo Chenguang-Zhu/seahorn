@@ -19,12 +19,15 @@ namespace seahorn
 
 		assert (bind::isFapp (fapp));
 
+		Expr fdecl = bind::fname(fapp);
+
 		ExprMap actual_arg_to_bvar_map;
 
-		for(int i=0; i<bind::domainSz(bind::fname(fapp)); i++)
+		for(int i=0; i<bind::domainSz(fdecl); i++)
 		{
 			Expr arg_i = fapp->arg(i+1);
-			Expr bvar_i = bind::bvar(i, bind::typeOf(arg_i));
+			Expr arg_i_type = bind::domainTy(fdecl, i);
+			Expr bvar_i = bind::bvar(i, arg_i_type);
 			actual_arg_to_bvar_map.insert(std::pair<Expr, Expr>(arg_i, bvar_i));
 		}
 
@@ -35,19 +38,37 @@ namespace seahorn
 
 	Expr HornDbModel::getDef(Expr fapp)
 	{
-		Expr rel = bind::fname(fapp);
-		Expr lemma_def = relToDefMap.find(rel)->second;
+		Expr fdecl = bind::fname(fapp);
+		Expr lemma_def = relToDefMap.find(fdecl)->second;
 
 		ExprMap bvar_to_actual_arg_map;
 
-		for(int i=0; i<bind::domainSz(bind::fname(fapp)); i++)
+		for(int i=0; i<bind::domainSz(fdecl); i++)
 		{
 			Expr arg_i = fapp->arg(i+1);
-			Expr bvar_i = bind::bvar(i, bind::typeOf(arg_i));
+			Expr arg_i_type = bind::domainTy(fdecl, i);
+			Expr bvar_i = bind::bvar(i, arg_i_type);
 			bvar_to_actual_arg_map.insert(std::pair<Expr, Expr>(bvar_i, arg_i));
 		}
 
 		Expr lemma = replace(lemma_def, bvar_to_actual_arg_map);
 		return lemma;
+	}
+
+	void initDBModelFromFP(HornDbModel &dbModel, HornClauseDB &db, ZFixedPoint<EZ3> &fp)
+	{
+		for(Expr rel : db.getRelations())
+		{
+			ExprVector actual_args;
+			for(int i=0; i<bind::domainSz(rel); i++)
+			{
+				Expr arg_i_type = bind::domainTy(rel, i);
+				Expr var = bind::fapp(bind::constDecl(variant::variant(i, mkTerm<std::string> ("V", rel->efac ())), arg_i_type));
+				actual_args.push_back(var);
+			}
+			Expr fapp = bind::fapp(rel, actual_args);
+			Expr def_app = fp.getCoverDelta(fapp);
+			dbModel.addDef(fapp, def_app);
+		}
 	}
 }
