@@ -167,7 +167,7 @@ namespace seahorn
 			oss << old_fdecl_name << "_pabs";
 			new_args.push_back(old_fdecl_name);
 			//Push boolean types
-			ExprVector term_vec = currentCandidates.find(rel)->second;
+			ExprVector term_vec = m_currentCandidates.find(rel)->second;
 			if(term_vec.size() > 1 || term_vec.size() == 1 && !isOpX<TRUE>(term_vec[0]))
 			{
 				for(int i=0; i<term_vec.size(); i++)
@@ -193,10 +193,10 @@ namespace seahorn
 			LOG("pabs-debug", outs() << "NEW REL: " << *new_rel << "\n";);
 			new_DB.registerRelation(new_rel);
 
-			oldToNewPredMap.insert(std::pair<Expr, Expr>(rel, new_rel));
-			newToOldPredMap.insert(std::pair<Expr, Expr>(new_rel, rel));
+			m_oldToNewPredMap.insert(std::pair<Expr, Expr>(rel, new_rel));
+			m_newToOldPredMap.insert(std::pair<Expr, Expr>(new_rel, rel));
 		}
-		converter.setNewToOldPredMap(newToOldPredMap); //set converter
+		converter.setNewToOldPredMap(m_newToOldPredMap); //set converter
 	}
 
 	void PredicateAbstractionAnalysis::generateAbstractRules(HornClauseDB &db, HornClauseDB &new_DB, PredAbsHornModelConverter &converter)
@@ -219,12 +219,12 @@ namespace seahorn
 			pred_vector.push_back(r.head());
 
 			//Deal with the rules that have no predicates
-			if(!util_hasBvarInRule(r, db, currentCandidates))
+			if(!util_hasBvarInRule(r, db, m_currentCandidates))
 			{
 				ExprMap replaceMap;
 				for(Expr pred : pred_vector)
 				{
-					Expr new_fdecl = oldToNewPredMap.find(bind::fname(pred))->second;
+					Expr new_fdecl = m_oldToNewPredMap.find(bind::fname(pred))->second;
 					Expr new_pred = bind::reapp(pred, new_fdecl);
 					replaceMap.insert(std::pair<Expr, Expr>(pred, new_pred));
 				}
@@ -251,7 +251,7 @@ namespace seahorn
 			for(ExprVector::iterator it = body_pred_apps.begin(); it != body_pred_apps.end(); ++it)
 			{
 				Expr rule_body_pred = *it;
-				Expr new_rule_body_rel = oldToNewPredMap.find(bind::fname(rule_body_pred))->second;
+				Expr new_rule_body_rel = m_oldToNewPredMap.find(bind::fname(rule_body_pred))->second;
 
 				int pred_order = relOccurrenceTimesMap.find(bind::fname(rule_body_pred))->second;
 				relOccurrenceTimesMap[bind::fname(rule_body_pred)] += 1;
@@ -278,9 +278,9 @@ namespace seahorn
 				int index = 0;
 				//for converter
 				ExprMap boolToTermMap;
-				for(Expr term : currentCandidates.find(bind::fname(*it))->second)
+				for(Expr term : m_currentCandidates.find(bind::fname(*it))->second)
 				{
-					Expr term_app = util_applyArgsToBvars(term, *it, currentCandidates);
+					Expr term_app = util_applyArgsToBvars(term, *it, m_currentCandidates);
 					Expr equal_expr = mk<IFF>(new_rule_body_pred->arg(index + 1), term_app);
 					//converter
 					boolToTermMap.insert(std::pair<Expr, Expr>(bind::bvar(index, mk<BOOL_TY>(term_app->efac())), term));
@@ -295,7 +295,7 @@ namespace seahorn
 			Expr rule_head = r.head();
 
 			//construct new rule head.
-			Expr new_rule_head_rel = oldToNewPredMap.find(bind::fname(rule_head))->second;
+			Expr new_rule_head_rel = m_oldToNewPredMap.find(bind::fname(rule_head))->second;
 
 			ExprVector new_rule_head_args;
 			int pred_order = relOccurrenceTimesMap.find(bind::fname(rule_head))->second;
@@ -318,9 +318,9 @@ namespace seahorn
 				int index = 0;
 				//for converter
 				ExprMap boolToTermMap;
-				for(Expr term : currentCandidates.find(bind::fname(rule_head))->second)
+				for(Expr term : m_currentCandidates.find(bind::fname(rule_head))->second)
 				{
-					Expr term_app = util_applyArgsToBvars(term, rule_head, currentCandidates);
+					Expr term_app = util_applyArgsToBvars(term, rule_head, m_currentCandidates);
 					Expr equal_expr = mk<IFF>(new_rule_head->arg(index + 1), term_app);
 					//converter
 					boolToTermMap.insert(std::pair<Expr, Expr>(bind::bvar(index, mk<BOOL_TY>(term_app->efac())), term));
@@ -350,7 +350,7 @@ namespace seahorn
 		for(auto old_query : db.getQueries())
 		{
 			Expr old_fdecl = bind::fname(old_query);
-			Expr new_fdecl = oldToNewPredMap.find(old_fdecl)->second;
+			Expr new_fdecl = m_oldToNewPredMap.find(old_fdecl)->second;
 			ExprVector old_args;
 			Expr new_query = bind::fapp(new_fdecl, old_args);
 			new_DB.addQuery(new_query);
@@ -365,7 +365,7 @@ namespace seahorn
 		  {
 			  //ExprVector terms = relToCand(rel);
 			  ExprVector terms = applyTemplatesFromExperimentFile(rel, "/home/chenguang/Desktop/seahorn/experiment/preds_temp");
-			  currentCandidates.insert(std::pair<Expr, ExprVector>(rel, terms));
+			  m_currentCandidates.insert(std::pair<Expr, ExprVector>(rel, terms));
 		  }
 	  }
 	}
@@ -504,11 +504,11 @@ namespace seahorn
 
 	bool PredAbsHornModelConverter::convert (HornDbModel &in, HornDbModel &out)
 	{
-		for(Expr abs_rel : abs_db->getRelations())
+		for(Expr abs_rel : m_abs_db->getRelations())
 		{
 			LOG("pabs-debug", outs() << "ABS REL: " << *abs_rel << "\n";);
 
-			Expr orig_rel = newToOldPredMap.find(abs_rel)->second;
+			Expr orig_rel = m_newToOldPredMap.find(abs_rel)->second;
 			LOG("pabs-debug", outs() << "ORIG REL: " << *orig_rel << "\n";);
 
 			ExprVector abs_arg_list;

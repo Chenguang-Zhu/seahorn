@@ -39,7 +39,14 @@ namespace seahorn
 	Expr HornDbModel::getDef(Expr fapp)
 	{
 		Expr fdecl = bind::fname(fapp);
-		Expr lemma_def = relToDefMap.find(fdecl)->second;
+		ExprMap::iterator it = relToDefMap.find(fdecl);
+
+		if(it == relToDefMap.end())
+	    {
+			return mk<TRUE>(fdecl->efac());
+	    }
+
+	    Expr lemma_def = it->second;
 
 		ExprMap bvar_to_actual_arg_map;
 

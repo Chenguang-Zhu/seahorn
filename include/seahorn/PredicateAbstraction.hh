@@ -20,27 +20,27 @@ namespace seahorn
 	class PredAbsHornModelConverter : public HornModelConverter
 	{
 	private:
-		std::map<Expr, ExprMap> relToBoolToTermMap;
-		std::map<Expr, Expr> newToOldPredMap;
-		HornClauseDB* abs_db;
+		std::map<Expr, ExprMap> m_relToBoolToTermMap;
+		std::map<Expr, Expr> m_newToOldPredMap;
+		HornClauseDB* m_abs_db;
 
-		std::map<Expr, ExprMap>& getRelToBoolToTermMap() {return relToBoolToTermMap;}
+		std::map<Expr, ExprMap>& getRelToBoolToTermMap() {return m_relToBoolToTermMap;}
 	public:
 		PredAbsHornModelConverter() {}
 		virtual ~PredAbsHornModelConverter() {}
 		bool convert (HornDbModel &in, HornDbModel &out);
 
-		void addRelToBoolToTerm(Expr rel, ExprMap &boolToTermMap) {relToBoolToTermMap.insert(std::pair<Expr, ExprMap>(rel, boolToTermMap));}
-		void setNewToOldPredMap(std::map<Expr, Expr> &newToOldMap) {newToOldPredMap = newToOldMap;}
-		void setAbsDB(HornClauseDB &db) {abs_db = &db;}
+		void addRelToBoolToTerm(Expr rel, ExprMap &boolToTermMap) {m_relToBoolToTermMap.insert(std::pair<Expr, ExprMap>(rel, boolToTermMap));}
+		void setNewToOldPredMap(std::map<Expr, Expr> &newToOldMap) {m_newToOldPredMap = newToOldMap;}
+		void setAbsDB(HornClauseDB &db) {m_abs_db = &db;}
 	};
 
 	class PredicateAbstractionAnalysis
 	{
 	private:
-	    std::map<Expr, Expr> oldToNewPredMap;
-	    std::map<Expr, Expr> newToOldPredMap;
-	    std::map<Expr, ExprVector> currentCandidates;
+	    std::map<Expr, Expr> m_oldToNewPredMap;
+	    std::map<Expr, Expr> m_newToOldPredMap;
+	    std::map<Expr, ExprVector> m_currentCandidates;
 
 	    HornifyModule& m_hm;
 
