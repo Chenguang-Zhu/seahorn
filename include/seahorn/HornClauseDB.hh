@@ -15,6 +15,8 @@
 #include <algorithm>
 #include <map>
 
+#include "seahorn/HornModelConverter.hh"
+
 namespace seahorn
 {
   using namespace llvm;
@@ -89,7 +91,6 @@ namespace seahorn
     void used_relations (HornClauseDB &db, OutputIterator out);
   };
 
-
   class HornClauseDB 
   {
     friend class HornRule;
@@ -114,6 +115,8 @@ namespace seahorn
     ExprVector m_queries;
     std::map<Expr, ExprVector> m_constraints;
     
+    HornModelConverter m_converter;
+    HornClauseDB* m_parent_db;
     /// indexes
 
     
@@ -134,7 +137,7 @@ namespace seahorn
 
   public:
 
-    HornClauseDB (ExprFactory &efac) : m_efac (efac) {}
+    HornClauseDB (ExprFactory &efac) : m_efac (efac), m_parent_db(NULL) {}
     
     ExprFactory &getExprFactory () {return m_efac;}
     
@@ -216,6 +219,11 @@ namespace seahorn
     /// Returns the current constraints for the predicate
     Expr getConstraints (Expr pred) const;
     
+    //Converter and parent db
+    HornModelConverter& getConverter() { return m_converter; }
+    void setConverter(HornModelConverter& converter) {m_converter = converter;}
+    HornClauseDB* getParentDB() {return m_parent_db;}
+    void setParentDB(HornClauseDB* db) {m_parent_db = db;}
 
     raw_ostream& write (raw_ostream& o) const;
 

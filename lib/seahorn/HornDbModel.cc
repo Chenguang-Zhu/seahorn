@@ -39,7 +39,14 @@ namespace seahorn
 	Expr HornDbModel::getDef(Expr fapp)
 	{
 		Expr fdecl = bind::fname(fapp);
-		Expr lemma_def = relToDefMap.find(fdecl)->second;
+		ExprMap::iterator it = relToDefMap.find(fdecl);
+
+		if(it == relToDefMap.end())
+		{
+			return mk<TRUE>(fdecl->efac());
+		}
+
+		Expr lemma_def = it->second;
 
 		ExprMap bvar_to_actual_arg_map;
 
@@ -53,22 +60,5 @@ namespace seahorn
 
 		Expr lemma = replace(lemma_def, bvar_to_actual_arg_map);
 		return lemma;
-	}
-
-	void initDBModelFromFP(HornDbModel &dbModel, HornClauseDB &db, ZFixedPoint<EZ3> &fp)
-	{
-		for(Expr rel : db.getRelations())
-		{
-			ExprVector actual_args;
-			for(int i=0; i<bind::domainSz(rel); i++)
-			{
-				Expr arg_i_type = bind::domainTy(rel, i);
-				Expr var = bind::fapp(bind::constDecl(variant::variant(i, mkTerm<std::string> ("V", rel->efac ())), arg_i_type));
-				actual_args.push_back(var);
-			}
-			Expr fapp = bind::fapp(rel, actual_args);
-			Expr def_app = fp.getCoverDelta(fapp);
-			dbModel.addDef(fapp, def_app);
-		}
 	}
 }

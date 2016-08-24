@@ -21,7 +21,6 @@ namespace seahorn
 		virtual ~HornDbModel() {}
 	};
 
-	void initDBModelFromFP(HornDbModel &dbModel, HornClauseDB &db, ZFixedPoint<EZ3> &fp);
 }
 
 #endif

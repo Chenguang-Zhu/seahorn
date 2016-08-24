@@ -42,10 +42,10 @@ namespace seahorn
 
 		HornDbModel oldModel;
 
-		PredAbsHornModelConverter converter;
+		//PredAbsHornModelConverter converter;
 
 		//run main algorithm
-		HornClauseDB new_db = pabs.generateAbstractDB(db, converter);
+		HornClauseDB new_db = pabs.generateAbstractDB(db);
 
 		//initialize spacer based on new DB
 		m_fp.reset (new ZFixedPoint<EZ3> (hm.getZContext ()));
@@ -136,25 +136,28 @@ namespace seahorn
 		  }
 	}
 
-	HornClauseDB PredicateAbstractionAnalysis::generateAbstractDB(HornClauseDB &db, PredAbsHornModelConverter &converter)
+	HornClauseDB PredicateAbstractionAnalysis::generateAbstractDB(HornClauseDB &db)
 	{
 		HornClauseDB new_DB(db.getExprFactory ());
+		new_DB.setParentDB(db);
+		PredAbsHornModelConverter converter(new_DB, this->newToOldPredMap);
+		new_DB.setConverter(converter);
 
-		generateAbstractRelations(db, new_DB, converter);
+		generateAbstractRelations(db, new_DB);
 
-		generateAbstractRules(db, new_DB, converter);
+		generateAbstractRules(db, new_DB);
 
 		generateAbstractQueries(db, new_DB);
 
 		LOG("pabs-debug", outs() << "NEW DB: \n";);
 		LOG("pabs-debug", outs() << new_DB << "\n";);
 
-		converter.setAbsDB(new_DB); //set converter
+		//converter.setAbsDB(new_DB); //set converter
 
 		return new_DB;
 	}
 
-	void PredicateAbstractionAnalysis::generateAbstractRelations(HornClauseDB &db, HornClauseDB &new_DB, PredAbsHornModelConverter &converter)
+	void PredicateAbstractionAnalysis::generateAbstractRelations(HornClauseDB &db, HornClauseDB &new_DB)
 	{
 		//For each relation, generate its abstract version
 		for(Expr rel : db.getRelations())
@@ -196,10 +199,10 @@ namespace seahorn
 			oldToNewPredMap.insert(std::pair<Expr, Expr>(rel, new_rel));
 			newToOldPredMap.insert(std::pair<Expr, Expr>(new_rel, rel));
 		}
-		converter.setNewToOldPredMap(newToOldPredMap); //set converter
+		//converter.setNewToOldPredMap(newToOldPredMap); //set converter
 	}
 
-	void PredicateAbstractionAnalysis::generateAbstractRules(HornClauseDB &db, HornClauseDB &new_DB, PredAbsHornModelConverter &converter)
+	void PredicateAbstractionAnalysis::generateAbstractRules(HornClauseDB &db, HornClauseDB &new_DB)
 	{
 		for(HornClauseDB::RuleVector::iterator it = db.getRules().begin(); it != db.getRules().end(); ++it)
 		{
@@ -288,7 +291,7 @@ namespace seahorn
 					new_body_exprs.push_back(equal_expr);
 					index ++;
 				}
-				converter.addRelToBoolToTerm(bind::fname(*it), boolToTermMap);
+				new_DB.getConverter().addRelToBoolToTerm(bind::fname(*it), boolToTermMap);
 				//converter.getRelToBoolToTermMap().insert(std::pair<Expr, ExprMap>(bind::fname(*it), boolToTermMap));
 			}
 
@@ -328,7 +331,7 @@ namespace seahorn
 					new_body_exprs.push_back(equal_expr);
 					index ++;
 				}
-				converter.addRelToBoolToTerm(bind::fname(rule_head), boolToTermMap);
+				new_DB.getConverter().addRelToBoolToTerm(bind::fname(rule_head), boolToTermMap);
 				//converter.getRelToBoolToTermMap().insert(std::pair<Expr, ExprMap>(bind::fname(rule_head), boolToTermMap));
 			}
 
@@ -578,5 +581,22 @@ namespace seahorn
 			out.addDef(orig_fapp, orig_def_app);
 		}
 		return true;
+	}
+
+	void initDBModelFromFP(HornDbModel &dbModel, HornClauseDB &db, ZFixedPoint<EZ3> &fp)
+	{
+		for(Expr rel : db.getRelations())
+		{
+			ExprVector actual_args;
+			for(int i=0; i<bind::domainSz(rel); i++)
+			{
+				Expr arg_i_type = bind::domainTy(rel, i);
+				Expr var = bind::fapp(bind::constDecl(variant::variant(i, mkTerm<std::string> ("V", rel->efac ())), arg_i_type));
+				actual_args.push_back(var);
+			}
+			Expr fapp = bind::fapp(rel, actual_args);
+			Expr def_app = fp.getCoverDelta(fapp);
+			dbModel.addDef(fapp, def_app);
+		}
 	}
 }
