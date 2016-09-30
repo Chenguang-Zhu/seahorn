@@ -79,7 +79,8 @@ namespace seahorn
 		  for(int i=0; i<bind::domainSz(rel); i++)
 		  {
 			  Expr arg_i_type = bind::domainTy(rel, i);
-			  Expr arg_i = bind::fapp(bind::constDecl(variant::variant(i, mkTerm<std::string> ("V", rel->efac ())), arg_i_type));
+			  //Expr arg_i = bind::fapp(bind::constDecl(variant::variant(i, mkTerm<std::string> ("V", rel->efac ())), arg_i_type));
+			  Expr arg_i = bind::bvar(i, arg_i_type);
 			  arg_list.push_back(arg_i);
 		  }
 		  Expr fapp = bind::fapp(rel, arg_list);
@@ -166,8 +167,10 @@ namespace seahorn
 			  if(isOpX<INT_TY>(bind::domainTy(rel, i)) || isOpX<BOOL_TY>(bind::domainTy(rel, i)))
 			  {
 				  Expr arg_i_type = bind::domainTy(rel, i);
-				  Expr arg_i = bind::fapp(bind::constDecl(variant::variant(i, mkTerm<std::string> ("V", rel->efac ())), arg_i_type));
-				  Expr attr_name_i = variant::tag(C5_rel_name, bind::fname(bind::fname(arg_i)));
+				  //Expr arg_i = bind::fapp(bind::constDecl(variant::variant(i, mkTerm<std::string> ("V", rel->efac ())), arg_i_type));
+				  Expr arg_i = bind::bvar(i, arg_i_type);
+				  //Expr attr_name_i = variant::tag(C5_rel_name, bind::fname(bind::fname(arg_i)));
+				  Expr attr_name_i = variant::tag(C5_rel_name, arg_i);
 				  m_attr_name_to_expr_map.insert(std::make_pair(attr_name_i, arg_i));
 				  names_of << attr_name_i << ": continuous.\n";
 				  upperInterval ++;
@@ -195,7 +198,8 @@ namespace seahorn
 		  for(int i=0; i<bind::domainSz(rel); i++)
 		  {
 			  Expr arg_i_type = bind::domainTy(rel, i);
-			  Expr arg_i = bind::fapp(bind::constDecl(variant::variant(i, mkTerm<std::string> ("V", rel->efac ())), arg_i_type));
+			  //Expr arg_i = bind::fapp(bind::constDecl(variant::variant(i, mkTerm<std::string> ("V", rel->efac ())), arg_i_type));
+			  Expr arg_i = bind::bvar(i, arg_i_type);
 			  arg_list.push_back(arg_i);
 		  }
 		  Expr fapp = bind::fapp(rel, arg_list);
@@ -311,7 +315,8 @@ namespace seahorn
 	  for(int i=0; i<bind::domainSz(rel); i++)
 	  {
 		  Expr arg_i_type = bind::domainTy(rel, i);
-		  Expr arg_i = bind::fapp(bind::constDecl(variant::variant(i, mkTerm<std::string> ("V", rel->efac ())), arg_i_type));
+		  //Expr arg_i = bind::fapp(bind::constDecl(variant::variant(i, mkTerm<std::string> ("V", rel->efac ())), arg_i_type));
+		  Expr arg_i = bind::bvar(i, arg_i_type);
 		  arg_list.push_back(arg_i);
 	  }
 	  Expr fapp = bind::fapp(rel, arg_list);
@@ -812,8 +817,8 @@ namespace seahorn
 		  for(int i=0; i<bind::domainSz(rel); i++)
 		  {
 			  Expr arg_i_type = bind::domainTy(rel, i);
-			  Expr arg_i = bind::fapp(bind::constDecl(variant::variant(i, mkTerm<std::string> ("V", rel->efac ())), arg_i_type));
-			  //Expr arg_i = bind::bvar(i, arg_i_type);
+			  //Expr arg_i = bind::fapp(bind::constDecl(variant::variant(i, mkTerm<std::string> ("V", rel->efac ())), arg_i_type));
+			  Expr arg_i = bind::bvar(i, arg_i_type);
 			  args.push_back(arg_i);
 		  }
 		  Expr rel_app = bind::fapp(rel, args);
