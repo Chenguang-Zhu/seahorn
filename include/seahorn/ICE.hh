@@ -75,6 +75,9 @@ namespace seahorn
 	  std::string m_C5filename;
 
 	  ExprMap m_attr_name_to_expr_map;
+	  std::map<std::string, Expr> m_attr_plus_minus_name_to_expr_map;
+	  std::map<Expr, int> m_rel_to_attr_number_map;
+
 	  ExprMap m_rel_to_c5_rel_name_map;
 	  ExprMap m_c5_rel_name_to_rel_map;
 
@@ -138,6 +141,8 @@ namespace seahorn
       std::list<std::list<Expr>> constructFormula(std::list<Expr> stack, boost::property_tree::ptree sub_pt);
 
       ZFixedPoint<EZ3>& resetFixedPoint(HornClauseDB &db);
+
+      void addPlusAndMinusAttrValues(Expr cex, std::list<Expr> &attr_values);
   };
 }
 

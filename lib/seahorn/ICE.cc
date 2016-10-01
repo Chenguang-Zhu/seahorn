@@ -120,6 +120,25 @@ namespace seahorn
 		  rel_index ++;
 	  }
 
+	  for(Expr rel : db.getRelations())
+	  {
+		  m_rel_to_attr_number_map[rel] = bind::domainSz(rel);
+		  for(int i=0; i<bind::domainSz(rel); i++)
+		  {
+			  for(int j=i+1; j<bind::domainSz(rel); j++)
+			  {
+				  if(isOpX<INT_TY>(bind::domainTy(rel, i)) && isOpX<INT_TY>(bind::domainTy(rel, j)))
+				  {
+					  m_rel_to_attr_number_map[rel] += 2;
+				  }
+			  }
+		  }
+	  }
+	  for(auto it = m_rel_to_attr_number_map.begin(); it!=m_rel_to_attr_number_map.end(); ++it)
+	  {
+		  outs() << *bind::fname(it->first) << ": " << it->second << "\n";
+	  }
+
 	  outs() << "REL NAME TO C5 NAME MAP:\n";
 	  for(auto it = m_rel_to_c5_rel_name_map.begin(); it != m_rel_to_c5_rel_name_map.end(); ++it)
 	  {
@@ -177,8 +196,16 @@ namespace seahorn
 					  Expr arg_j = bind::fapp(bind::constDecl(variant::variant(j, mkTerm<std::string> ("V", rel->efac ())), arg_type));
 					  Expr attr_name_i = variant::tag(C5_rel_name, bind::fname(bind::fname(arg_i)));
 					  Expr attr_name_j = variant::tag(C5_rel_name, bind::fname(bind::fname(arg_j)));
-					  names_of << attr_name_i << "+" << attr_name_j << ":= " << attr_name_i << " + " << attr_name_j << ".\n";
-					  names_of << attr_name_i << "-" << attr_name_j << ":= " << attr_name_i << " - " << attr_name_j << ".\n";
+
+					  std::ostringstream oss_plus;
+					  std::ostringstream oss_minus;
+					  oss_plus << attr_name_i << "+" << attr_name_j;
+					  oss_minus << attr_name_i << "-" << attr_name_j;
+					  m_attr_plus_minus_name_to_expr_map.insert(std::make_pair(oss_plus.str(), mk<PLUS>(arg_i, arg_j)));
+					  m_attr_plus_minus_name_to_expr_map.insert(std::make_pair(oss_minus.str(), mk<MINUS>(arg_i, arg_j)));
+
+					  names_of << attr_name_i << "+" << attr_name_j << ": continuous.\n";
+					  names_of << attr_name_i << "-" << attr_name_j << ": continuous.\n";
 					  upperInterval += 2;
 				  }
 			  }
@@ -411,66 +438,29 @@ namespace seahorn
 		  std::string attr_name = sub_pt.get<std::string>("attribute");
 		  outs() << "CUT ATTRIBUTE: " << attr_name << "\n";
 
-		  typedef boost::tokenizer< boost::char_separator<char>> t_tokenizer;
 		  if(attr_name.find("+") != -1)
 		  {
-			  boost::char_separator<char> sep("+");
-			  t_tokenizer tok(attr_name, sep);
-			  std::string left_name = *(tok.begin());
-			  std::string right_name = *(++tok.begin());
-			  Expr left_expr;
-			  Expr right_expr;
-			  for(ExprMap::iterator it = m_attr_name_to_expr_map.begin(); it!= m_attr_name_to_expr_map.end(); ++it)
+			  Expr plus_expr = m_attr_plus_minus_name_to_expr_map.find(attr_name) -> second;
+			  if(!isOpX<PLUS>(plus_expr))
 			  {
-				  std::ostringstream oss;
-				  oss << *(it->first);
-				  if(oss.str() == left_name)
-				  {
-					  left_expr = it->second;
-				  }
-				  if(oss.str() == right_name)
-				  {
-					  right_expr = it->second;
-				  }
-			  }
-			  if(!bind::isIntConst(left_expr) || !bind::isIntConst(right_expr))
-			  {
-				  outs() << "OPERAND TYPE WRONG!\n";
+				  outs() << "OPERATOR TYPE WRONG!\n";
 				  return final_formula;
 			  }
 			  int cut = sub_pt.get<int>("cut");
-			  Expr threshold = mkTerm<mpz_class>(cut, left_expr->efac());
-			  decision_expr = mk<LEQ>(mk<PLUS>(left_expr, right_expr), threshold);
+			  Expr threshold = mkTerm<mpz_class>(cut, plus_expr->efac());
+			  decision_expr = mk<LEQ>(plus_expr, threshold);
 		  }
 		  else if(attr_name.find("-") != -1)
 		  {
-			  boost::char_separator<char> sep("-");
-			  t_tokenizer tok(attr_name, sep);
-			  std::string left_name = *(tok.begin());
-			  std::string right_name = *(++tok.begin());
-			  Expr left_expr;
-			  Expr right_expr;
-			  for(ExprMap::iterator it = m_attr_name_to_expr_map.begin(); it!= m_attr_name_to_expr_map.end(); ++it)
+			  Expr minus_expr = m_attr_plus_minus_name_to_expr_map.find(attr_name) -> second;
+			  if(!isOpX<MINUS>(minus_expr))
 			  {
-				  std::ostringstream oss;
-				  oss << *(it->first);
-				  if(oss.str() == left_name)
-				  {
-					  left_expr = it->second;
-				  }
-				  if(oss.str() == right_name)
-				  {
-					  right_expr = it->second;
-				  }
-			  }
-			  if(!bind::isIntConst(left_expr) || !bind::isIntConst(right_expr))
-			  {
-				  outs() << "OPERAND TYPE WRONG!\n";
+				  outs() << "OPERATOR TYPE WRONG!\n";
 				  return final_formula;
 			  }
 			  int cut = sub_pt.get<int>("cut");
-			  Expr threshold = mkTerm<mpz_class>(cut, left_expr->efac());
-			  decision_expr = mk<LEQ>(mk<MINUS>(left_expr, right_expr), threshold);
+			  Expr threshold = mkTerm<mpz_class>(cut, minus_expr->efac());
+			  decision_expr = mk<LEQ>(minus_expr, threshold);
 		  }
 		  else
 		  {
@@ -535,12 +525,13 @@ namespace seahorn
 		  }
 		  else
 		  {
-			  for(int i=0; i<bind::domainSz(rel); i++)
+			  for(int i=0; i<m_rel_to_attr_number_map.find(rel)->second; i++)
 			  {
 				  oss << ",?";
 			  }
 		  }
 	  }
+	  outs() << "PRINT DATA POINT: " << oss.str() << "\n";
 	  return oss.str();
   }
 
@@ -681,14 +672,21 @@ namespace seahorn
 				  {
 					  Expr arg_i = cex->arg(i+1);
 					  outs() << *arg_i << "\n";
-					  if(bind::isBoolConst(arg_i) || bind::isIntConst(arg_i))
+					  if(bind::isBoolConst(arg_i))
 					  {
-						  outs() << "NOT VALUE: " << *arg_i << "\n";
-						  Expr uncertain_value = mkTerm<std::string>("?", arg_i->efac());
+						  outs() << "UNCERTAIN VALUE: " << *arg_i << "\n";
+						  Expr uncertain_value = mk<FALSE>(arg_i->efac());
+						  arg_i = uncertain_value;
+					  }
+					  else if(bind::isIntConst(arg_i))
+					  {
+						  outs() << "UNCERTAIN VALUE: " << *arg_i << "\n";
+						  Expr uncertain_value = mkTerm<mpz_class>(0, arg_i->efac());
 						  arg_i = uncertain_value;
 					  }
 					  attr_values.push_back(arg_i);
 				  }
+				  addPlusAndMinusAttrValues(cex, attr_values);
 
 				  DataPoint pos_dp(bind::fname(bind::fname(obj_pred)), attr_values);
 				  addPosCex(pos_dp);
@@ -698,7 +696,7 @@ namespace seahorn
 				  index++;
 
 				  //call C5 learner
-				  C5learn();
+				  //C5learn();
 			  }
 			  else
 			  {
@@ -770,14 +768,21 @@ namespace seahorn
   				  {
   					  Expr arg_i = cex->arg(i+1);
   					  outs() << *arg_i << "\n";
-  					  if(bind::isBoolConst(arg_i) || bind::isIntConst(arg_i))
-  					  {
-  						  outs() << "NOT VALUE: " << *arg_i << "\n";
-  						  Expr uncertain_value = mkTerm<std::string>("?", arg_i->efac());
-  						  arg_i = uncertain_value;
-  					  }
+  					  if(bind::isBoolConst(arg_i))
+					  {
+						  outs() << "UNCERTAIN VALUE: " << *arg_i << "\n";
+						  Expr uncertain_value = mk<FALSE>(arg_i->efac());
+						  arg_i = uncertain_value;
+					  }
+					  else if(bind::isIntConst(arg_i))
+					  {
+						  outs() << "UNCERTAIN VALUE: " << *arg_i << "\n";
+						  Expr uncertain_value = mkTerm<mpz_class>(0, arg_i->efac());
+						  arg_i = uncertain_value;
+					  }
   					  attr_values.push_back(arg_i);
   				  }
+  				  addPlusAndMinusAttrValues(cex, attr_values);
 
   				  DataPoint neg_dp(bind::fname(bind::fname(head)), attr_values);
   				  addNegCex(neg_dp);
@@ -787,7 +792,7 @@ namespace seahorn
   				  index++;
 
 				  //call C5 learner
-				  C5learn();
+				  //C5learn();
 			  }
 			  else
 			  {
@@ -868,6 +873,7 @@ namespace seahorn
 					  Expr arg_i_value = m.eval(arg_i);
 					  start_attr_values.push_back(arg_i_value);
 				  }
+				  addPlusAndMinusAttrValues(body_app, start_attr_values);
 				  DataPoint start_point(bind::fname(bind::fname(body_app)), start_attr_values);
 
 				  std::list<Expr> end_attr_values;
@@ -877,6 +883,7 @@ namespace seahorn
 					  Expr arg_i_value = m.eval(arg_i);
 					  end_attr_values.push_back(arg_i_value);
 				  }
+				  addPlusAndMinusAttrValues(r_head, end_attr_values);
 				  DataPoint end_point(bind::fname(bind::fname(r_head)), end_attr_values);
 
 				  if(m_pos_data_set.count(start_point) == 0 && m_neg_data_set.count(start_point) == 0 && m_impl_cex_set.count(start_point) == 0)
@@ -899,7 +906,7 @@ namespace seahorn
 				  addImplPair(std::make_pair(start_point, end_point));
 
 				  //call C5 learner
-				  C5learn();
+				  //C5learn();
 			  }
 			  else
 			  {
@@ -908,6 +915,11 @@ namespace seahorn
 			  }
 		  }
 		  outs() << "==================================================================\n";
+
+		  if(isChanged)
+		  {
+			  C5learn();
+		  }
 	  }
 
 	  outs() << "FINAL INVARIANTS MAP:\n";
@@ -926,6 +938,44 @@ namespace seahorn
 	  }
 
 	  addInvarCandsToProgramSolver();
+  }
+
+  void ICE::addPlusAndMinusAttrValues(Expr cex, std::list<Expr> &attr_values)
+  {
+	  for(int i=0; i<bind::domainSz(bind::fname(cex)); i++)
+	  {
+		  for(int j=i+1; j<bind::domainSz(bind::fname(cex)); j++)
+		  {
+			  if(isOpX<INT_TY>(bind::domainTy(bind::fname(cex), i)) && isOpX<INT_TY>(bind::domainTy(bind::fname(cex), j)))
+			  {
+				  Expr arg_i = cex->arg(i+1);
+				  Expr arg_j = cex->arg(j+1);
+				  if(bind::isIntConst(arg_i) || bind::isIntConst(arg_j))
+				  {
+					  Expr uncertain_value = mkTerm<mpz_class>(0, cex->efac());
+					  attr_values.push_back(uncertain_value);
+					  attr_values.push_back(uncertain_value);
+				  }
+				  else
+				  {
+					  std::ostringstream oss;
+					  oss << arg_i;
+					  int arg_i_value = atoi(oss.str().c_str());
+					  outs() << "LEFT VALUE: " << arg_i_value << "\n";
+					  oss.str("");
+					  oss << arg_j;
+					  int arg_j_value = atoi(oss.str().c_str());
+					  outs() << "RIGHT VALUE: " << arg_j_value << "\n";
+					  int plus_value = arg_i_value + arg_j_value;
+					  int minus_value = arg_i_value - arg_j_value;
+					  Expr plus_value_expr = mkTerm<mpz_class>(plus_value, cex->efac());
+					  Expr minus_value_expr = mkTerm<mpz_class>(minus_value, cex->efac());
+					  attr_values.push_back(plus_value_expr);
+					  attr_values.push_back(minus_value_expr);
+				  }
+			  }
+		  }
+	  }
   }
 
   ZFixedPoint<EZ3>& ICE::resetFixedPoint(HornClauseDB &db)
