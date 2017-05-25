@@ -622,22 +622,24 @@ namespace seahorn
   		  ExprVector body_pred_apps;
   		  get_all_pred_apps(r_body, db, std::back_inserter(body_pred_apps));
 
-  		  if(body_pred_apps.size() != 1)
+//  		  if(body_pred_apps.size() != 1)
+//  		  {
+//  			  continue;
+//  		  }
+//  		  Expr body_app = body_pred_apps[0];
+//  		  if(bind::fname(r_head) != bind::fname(body_app))
+//  		  {
+//  			  continue;
+//  		  }
+  		  for(Expr body_app : body_pred_apps)
   		  {
-  			  continue;
+  			  Expr body_app_cand  = m_candidate_model.getDef(body_app);
+  			  solver.assertExpr(body_app_cand);
   		  }
-  		  Expr body_app = body_pred_apps[0];
-  		  if(bind::fname(r_head) != bind::fname(body_app))
-  		  {
-  			  continue;
-  		  }
-  		  Expr body_app_cand  = m_candidate_model.getDef(body_app);
-
-  		  solver.assertExpr(body_app_cand);
 
   		  solver.assertExpr(extractTransitionRelation(r, db));
 
-  		  solver.toSmtLib(errs());
+  		  //solver.toSmtLib(errs());
   		  boost::tribool result = solver.solve();
   		  if(result != UNSAT)
   		  {
@@ -646,21 +648,21 @@ namespace seahorn
   			  //get cex
   			  ZModel<EZ3> m = solver.getModel();
   			  //print cex
-  			  LOG("ice", errs() << "(";);
-  			  for(int i=0; i<bind::domainSz(bind::fname(body_app)); i++)
-  			  {
-  				  Expr arg_i = body_app->arg(i+1);
-  				  Expr arg_i_value = m.eval(arg_i);
-  				  LOG("ice", errs() << *arg_i_value << ",";);
-  			  }
-  			  LOG("ice", errs() << ") -> (";);
-  			  for(int i=0; i<bind::domainSz(bind::fname(r_head)); i++)
-  			  {
-  				  Expr arg_i = r_head->arg(i+1);
-  				  Expr arg_i_value = m.eval(arg_i);
-  				  LOG("ice", errs() << *arg_i_value << ",";);
-  			  }
-  			  LOG("ice", errs() << ")\n";);
+//  			  LOG("ice", errs() << "(";);
+//  			  for(int i=0; i<bind::domainSz(bind::fname(body_app)); i++)
+//  			  {
+//  				  Expr arg_i = body_app->arg(i+1);
+//  				  Expr arg_i_value = m.eval(arg_i);
+//  				  LOG("ice", errs() << *arg_i_value << ",";);
+//  			  }
+//  			  LOG("ice", errs() << ") -> (";);
+//  			  for(int i=0; i<bind::domainSz(bind::fname(r_head)); i++)
+//  			  {
+//  				  Expr arg_i = r_head->arg(i+1);
+//  				  Expr arg_i_value = m.eval(arg_i);
+//  				  LOG("ice", errs() << *arg_i_value << ",";);
+//  			  }
+//  			  LOG("ice", errs() << ")\n";);
 
   			  //add impl pair
   			  std::list<Expr> start_attr_values;
