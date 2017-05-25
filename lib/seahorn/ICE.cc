@@ -114,6 +114,7 @@ namespace seahorn
 	  }
   }
 
+  /*create a no-argument predicate for positive counterexample queries*/
   void ICE::setPosQuery()
   {
 	  auto &db = m_hm.getHornClauseDB();
@@ -267,10 +268,10 @@ namespace seahorn
 
   	  int index = 0;
   	  bool isChanged = true;
-  	  while(isChanged)
+  	  while(isChanged) //There are still some counterexamples to find
   	  {
   		  isChanged = false;
-  		  constructPosAndNegRules(db);
+  		  constructPosAndNegRules(db); //construct rules for positive examples and negative examples.
 
   		  //deal with positive examples
   		  recordPosCexs(db, isChanged, index);
@@ -324,7 +325,7 @@ namespace seahorn
   		  LOG("ice", errs() << "REL: " << *fapp << ", CAND: " << *cand << "\n";);
   	  }
 
-  	  saveInvsToSmtLibFile();
+  	  saveInvsToSmtLibFile(); //For validation with Houdini
   	  addInvarCandsToProgramSolver();
   }
 
@@ -794,7 +795,7 @@ namespace seahorn
   	  {
   		 m_orig_queries.push_back(q);
   	  }
-  	  assert(m_orig_queries.size() == 1);
+  	  assert(m_orig_queries.size() == 1); // there should be only one original query.
 
   	  //get db entry predicate
   	  for(auto it = db.getRules().begin(); it!=db.getRules().end(); ++it)

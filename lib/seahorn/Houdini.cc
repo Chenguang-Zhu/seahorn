@@ -208,6 +208,7 @@ namespace seahorn
   		  {
   			  addUsedRulesBackToWorkList(m_db_wto, m_workList, r);
   			  ZModel<EZ3> m = m_solver.getModel();
+  			  // outs() << "MODEL IS:" << m;
   			  weakenRuleHeadCand(r, m);
   		  }
   	  }
@@ -228,6 +229,21 @@ namespace seahorn
 	  Expr ruleBody = r.body();
 	  ExprVector body_pred_apps;
 	  get_all_pred_apps(ruleBody, db, std::back_inserter(body_pred_apps));
+
+	  /***** This part is only for validating ICE's result *****/
+	  if(body_pred_apps.size() != 1)
+	  {
+		  LOG("houdini", errs() << "NO NEED TO VALIDATE FOR ICE!\n";);
+		  return UNSAT;
+	  }
+	  Expr body_app = body_pred_apps[0];
+	  if(bind::fname(r.head()) != bind::fname(body_app))
+	  {
+		  LOG("houdini", errs() << "NO NEED TO VALIDATE FOR ICE!\n";);
+		  return UNSAT;
+	  }
+	  /***** This part is only for validating ICE's result *****/
+
 	  for(Expr body_app : body_pred_apps)
 	  {
 		  LOG("houdini", errs() << "BODY PRED:" << *body_app << "\n";);
