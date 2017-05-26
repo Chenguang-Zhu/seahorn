@@ -622,10 +622,11 @@ namespace seahorn
   		  ExprVector body_pred_apps;
   		  get_all_pred_apps(r_body, db, std::back_inserter(body_pred_apps));
 
-//  		  if(body_pred_apps.size() != 1)
-//  		  {
-//  			  continue;
-//  		  }
+  		  // check if there are more than one predicates in the body.
+  		  if(body_pred_apps.size() != 1)
+  		  {
+  			  continue;
+  		  }
 //  		  Expr body_app = body_pred_apps[0];
 //  		  if(bind::fname(r_head) != bind::fname(body_app))
 //  		  {
@@ -707,6 +708,7 @@ namespace seahorn
 
   				  start_attr_values.push_back(arg_i_value);
   			  }
+  			  std::map<Expr, std::list<Expr>> pred_name_attrs_map;
   			  DataPoint start_point(bind::fname(bind::fname(body_app)), start_attr_values);
 
   			  std::list<Expr> end_attr_values;
@@ -1003,6 +1005,33 @@ namespace seahorn
   	  }
   	  return oss.str();
   }
+
+//  std::string ICE::outputDataPoint(DataPoint p)
+//  {
+//    	  auto &db = m_hm.getHornClauseDB();
+//    	  std::ostringstream oss;
+//    	  Expr pred_name = p.getPredName();
+//    	  Expr C5_pred_name = m_rel_to_c5_rel_name_map.find(pred_name)->second;
+//    	  oss << C5_pred_name;
+//    	  for(Expr rel : db.getRelations())
+//    	  {
+//    		  if(bind::fname(rel) == pred_name)
+//    		  {
+//    			  for(Expr attr : p.getAttrValues())
+//    			  {
+//    				  oss << "," << *attr;
+//    			  }
+//    		  }
+//    		  else
+//    		  {
+//    			  for(int i=0; i<bind::domainSz(rel); i++)
+//    			  {
+//    				  oss << ",?";
+//    			  }
+//    		  }
+//    	  }
+//    	  return oss.str();
+//  }
 
   void ICE::convertPtreeToInvCandidate(boost::property_tree::ptree pt)
   {

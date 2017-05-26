@@ -61,6 +61,30 @@ namespace seahorn
 	  { return hash() < other.hash ();}
   };
 
+//  class DataPoint
+//  {
+//  	  std::map<Expr, std::list<Expr>> m_pred_name_to_attrs_map;
+//    public:
+//  	  DataPoint() {}
+//  	  DataPoint(std::map<Expr, std::list<Expr>> pred_name_to_attrs_map) : m_pred_name_to_attrs_map(pred_name_to_attrs_map) {}
+//  	  virtual ~DataPoint() {}
+//  	  std::map<Expr, std::list<Expr>>& getPredNameToAttrsMap() {return m_pred_name_to_attrs_map;}
+//
+//  	  size_t hash () const
+//  	  {
+//  		size_t res = expr::hash_value (m_pred_name_to_attrs_map);
+//  		//boost::hash_combine (res, boost::hash_range (m_values.begin (),
+//  		//											 m_values.end ()));
+//  		return res;
+//  	  }
+//
+//  	  bool operator==(const DataPoint & other) const
+//  	  { return hash() == other.hash ();}
+//
+//  	  bool operator<(const DataPoint & other) const
+//  	  { return hash() < other.hash ();}
+//  };
+
   class ICE
   {
   public:
