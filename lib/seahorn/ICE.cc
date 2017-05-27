@@ -623,15 +623,21 @@ namespace seahorn
   		  ExprVector body_pred_apps;
   		  get_all_pred_apps(r_body, db, std::back_inserter(body_pred_apps));
 
-  		  if(body_pred_apps.size() != 1)
+  		  // check if there are more than one predicates in the body. If yes, exit.
+  		  if(body_pred_apps.size() > 1)
+  		  {
+  			  LOG("ice", errs() << "RULE BODY HAS MULTIPLE PREDICATES!\n");
+  			  exit(0);
+  		  }
+  		  if(body_pred_apps.size() < 1)
   		  {
   			  continue;
   		  }
   		  Expr body_app = body_pred_apps[0];
-  		  if(bind::fname(r_head) != bind::fname(body_app))
-  		  {
-  			  continue;
-  		  }
+//  		  if(bind::fname(r_head) != bind::fname(body_app))
+//  		  {
+//  			  continue;
+//  		  }
   		  Expr body_app_cand  = m_candidate_model.getDef(body_app);
 
   		  solver.assertExpr(body_app_cand);
@@ -752,22 +758,45 @@ namespace seahorn
   			  }
   			  DataPoint end_point(bind::fname(bind::fname(r_head)), end_attr_values);
 
-  			  if(m_pos_data_set.count(start_point) == 0 && m_neg_data_set.count(start_point) == 0 && m_impl_cex_set.count(start_point) == 0)
+  			  // in these situations, no need to add impl pairs
+  			  if(m_pos_data_set.count(start_point) != 0 || m_neg_data_set.count(start_point) != 0 || m_pos_data_set.count(end_point) != 0 || m_neg_data_set.count(end_point) != 0)
   			  {
-  				  addImplCex(start_point);
-  				  m_cex_list.push_back(start_point);
-  				  addDataPointToIndex(start_point, index);
+  				  continue;
+  			  }
+
+  			  if(m_impl_cex_set.count(start_point) == 0)
+			  {
+				  addImplCex(start_point);
+				  m_cex_list.push_back(start_point);
+				  addDataPointToIndex(start_point, index);
 				  LOG("ice", errs() << "IMPL CEX, INDEX IS " << index << "\n";);
 				  index++;
-  			  }
-  			  if(m_pos_data_set.count(end_point) == 0 && m_neg_data_set.count(end_point) == 0 && m_impl_cex_set.count(end_point) == 0)
-  			  {
-  				  addImplCex(end_point);
+			  }
+			  if(m_impl_cex_set.count(end_point) == 0)
+			  {
+				  addImplCex(end_point);
 				  m_cex_list.push_back(end_point);
 				  addDataPointToIndex(end_point, index);
 				  LOG("ice", errs() << "IMPL CEX, INDEX IS " << index << "\n";);
 				  index++;
-  			  }
+			  }
+
+//  			  if(m_pos_data_set.count(start_point) == 0 && m_neg_data_set.count(start_point) == 0 && m_impl_cex_set.count(start_point) == 0)
+//  			  {
+//  				  addImplCex(start_point);
+//  				  m_cex_list.push_back(start_point);
+//  				  addDataPointToIndex(start_point, index);
+//				  LOG("ice", errs() << "IMPL CEX, INDEX IS " << index << "\n";);
+//				  index++;
+//  			  }
+//  			  if(m_pos_data_set.count(end_point) == 0 && m_neg_data_set.count(end_point) == 0 && m_impl_cex_set.count(end_point) == 0)
+//  			  {
+//  				  addImplCex(end_point);
+//				  m_cex_list.push_back(end_point);
+//				  addDataPointToIndex(end_point, index);
+//				  LOG("ice", errs() << "IMPL CEX, INDEX IS " << index << "\n";);
+//				  index++;
+//  			  }
 
   			  addImplPair(std::make_pair(start_point, end_point));
 

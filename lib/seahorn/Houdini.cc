@@ -20,6 +20,10 @@
 
 using namespace llvm;
 
+static llvm::cl::opt<std::string>
+HoudiniCandidate("horn-houdini-candidate", llvm::cl::desc("Input candidate"),
+               llvm::cl::init(""), llvm::cl::value_desc("filename"));
+
 namespace seahorn
 {
   #define SAT_OR_INDETERMIN true
@@ -127,7 +131,8 @@ namespace seahorn
 //		  m_candidate_model.addDef(fapp, cand_app);
 //	  }
 
-	  initDBModelFromFile(m_candidate_model, db, m_hm.getZContext(), "invs.dump");
+	  if (!HoudiniCandidate.empty ())
+	    initDBModelFromFile(m_candidate_model, db, m_hm.getZContext(), HoudiniCandidate.c_str());
 
 	  for(Expr rel : db.getRelations())
 	  {
@@ -231,17 +236,17 @@ namespace seahorn
 	  get_all_pred_apps(ruleBody, db, std::back_inserter(body_pred_apps));
 
 	  /***** This part is only for validating ICE's result *****/
-	  if(body_pred_apps.size() != 1)
+	  if(body_pred_apps.size() > 1)
 	  {
-		  LOG("houdini", errs() << "NO NEED TO VALIDATE FOR ICE!\n";);
+		  LOG("houdini", errs() << "MULTIPLE PREDICATES IN BODY, NO NEED TO VALIDATE!\n";);
 		  return UNSAT;
 	  }
-	  Expr body_app = body_pred_apps[0];
-	  if(bind::fname(r.head()) != bind::fname(body_app))
-	  {
-		  LOG("houdini", errs() << "NO NEED TO VALIDATE FOR ICE!\n";);
-		  return UNSAT;
-	  }
+//	  Expr body_app = body_pred_apps[0];
+//	  if(bind::fname(r.head()) != bind::fname(body_app))
+//	  {
+//		  LOG("houdini", errs() << "NO NEED TO VALIDATE FOR ICE!\n";);
+//		  return UNSAT;
+//	  }
 	  /***** This part is only for validating ICE's result *****/
 
 	  for(Expr body_app : body_pred_apps)

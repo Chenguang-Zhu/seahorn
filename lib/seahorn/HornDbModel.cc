@@ -96,6 +96,7 @@ namespace seahorn
 		  Expr impl = assert_conjunction->arg(i);
 		  Expr fapp = impl->arg(0);
 		  Expr cand_app = impl->arg(1);
+		  // dbModel.addDef (fapp, cand_app);
 		  fappTocandAppMap.insert(std::make_pair(fapp, cand_app));
 		  fapps.push_back(fapp);
 		  LOG("validate-inv", outs() << "FAPP:" << *fapp << "\n";);
@@ -113,6 +114,7 @@ namespace seahorn
 			  std::ostringstream oss2;
 			  oss2 << bind::fname(bind::fname(fapp));
 
+			  // if (rel == bind::fname (fapp))
 			  if(oss.str() == oss2.str())
 			  {
 				  ExprVector args;
@@ -123,6 +125,7 @@ namespace seahorn
 				  }
 
 				  Expr rel_app = bind::fapp(rel, args);
+				  assert (rel_app == fapp);
 				  Expr cand_app = fappTocandAppMap.find(fapp)->second;
 				  outs() << "REL APP: " << *rel_app << "\n";
 				  outs() << "CAND APP: " << *cand_app << "\n";
