@@ -30,6 +30,10 @@
 
 using namespace llvm;
 
+static llvm::cl::opt<std::string>
+ICEInvDump("horn-ice-inv-dump", llvm::cl::desc("ICE Invariants Dump File:"),
+               llvm::cl::init(""), llvm::cl::value_desc("filename"));
+
 namespace seahorn
 {
   #define SAT_OR_INDETERMIN true
@@ -86,7 +90,7 @@ namespace seahorn
 
 		  solver.assertExpr(mk<IMPL>(fapp, cand_app));
 	  }
-	  std::ofstream ofs("invs.dump");
+	  std::ofstream ofs(ICEInvDump.c_str());
 	  solver.toSmtLib(ofs);
   }
 
@@ -324,8 +328,12 @@ namespace seahorn
   		  Expr cand = m_candidate_model.getDef(fapp);
   		  LOG("ice", errs() << "REL: " << *fapp << ", CAND: " << *cand << "\n";);
   	  }
+  	  // Dump the invariants into file, for validation with Houdini
+  	  if (!ICEInvDump.empty ())
+  	  {
+  		  saveInvsToSmtLibFile();
+  	  }
 
-  	  saveInvsToSmtLibFile(); //For validation with Houdini
   	  addInvarCandsToProgramSolver();
   }
 
