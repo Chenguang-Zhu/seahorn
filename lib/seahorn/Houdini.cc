@@ -24,6 +24,10 @@ static llvm::cl::opt<std::string>
 HoudiniCandidate("horn-houdini-candidate", llvm::cl::desc("Input candidate"),
                llvm::cl::init(""), llvm::cl::value_desc("filename"));
 
+static llvm::cl::opt<bool>
+HoudiniForValidatingICE ("horn-houdini-for-validating-ice", llvm::cl::desc ("Run Houdini for validating ICE"),
+               llvm::cl::init (false));
+
 namespace seahorn
 {
   #define SAT_OR_INDETERMIN true
@@ -146,8 +150,8 @@ namespace seahorn
 		  }
 		  Expr rel_app = bind::fapp(rel, args);
 		  Expr cand_app = m_candidate_model.getDef(rel_app);
-		  outs() << "FAPP:" << *rel_app << "\n";
-		  outs() << "CANDAPP:" << *cand_app << "\n";
+		  LOG("validate-inv", errs() << "FAPP:" << *rel_app << "\n";);
+		  LOG("validate-inv", errs() << "CANDAPP:" << *cand_app << "\n";);
 	  }
   }
 
@@ -198,6 +202,8 @@ namespace seahorn
 	  }
 
 	  addInvarCandsToProgramSolver();
+
+	  LOG("houdini-res", outs() << "Houdini Validation Pass!\n";);
   }
 
   void Houdini_Naive::run()
@@ -264,6 +270,11 @@ namespace seahorn
 	  if(isSat)
 	  {
 		  LOG("houdini", errs() << "SAT\n";);
+		  if(HoudiniForValidatingICE == true)
+		  {
+			  LOG("houdini-res", outs() << "Houdini Validation Fails!\n";);
+			  exit(5);
+		  }
 		  return SAT_OR_INDETERMIN;
 	  }
 	  else if(!isSat)
@@ -274,6 +285,11 @@ namespace seahorn
 	  else //if indeterminate
 	  {
 		  LOG("houdini", errs() << "INDETERMINATE\n";);
+		  if(HoudiniForValidatingICE == true)
+		  {
+			  LOG("houdini-res", outs() << "Houdini Validation Fails!\n";);
+			  exit(5);
+		  }
 		  return SAT_OR_INDETERMIN;
 	  }
   }

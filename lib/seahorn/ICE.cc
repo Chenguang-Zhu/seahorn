@@ -34,6 +34,10 @@ static llvm::cl::opt<std::string>
 ICEInvDump("horn-ice-inv-dump", llvm::cl::desc("ICE Invariants Dump File:"),
                llvm::cl::init(""), llvm::cl::value_desc("filename"));
 
+static llvm::cl::opt<std::string>
+C5ExecPath("horn-ice-c5-exec-path", llvm::cl::desc("C5 Executable File Path:"),
+               llvm::cl::init(""), llvm::cl::value_desc("filename"));
+
 namespace seahorn
 {
   #define SAT_OR_INDETERMIN true
@@ -53,7 +57,8 @@ namespace seahorn
     ice.setupC5();
     ice.genInitialCandidates(hm.getHornClauseDB());
     ice.runICE();
-    LOG("ice", errs() << "RUN ICE SUCCESSCULLY\n";);
+    LOG("ice-res", errs() << "RUN ICE SUCCESSCULLY\n";);
+    // LOG("ice", errs() << "RUN ICE SUCCESSCULLY\n";);
     Stats::stop ("ICE inv");
 
     return false;
@@ -634,8 +639,9 @@ namespace seahorn
   		  // check if there are more than one predicates in the body. If yes, exit.
   		  if(body_pred_apps.size() > 1)
   		  {
-  			  LOG("ice", errs() << "RULE BODY HAS MULTIPLE PREDICATES!\n");
-  			  exit(0);
+  			  LOG("ice-res", errs() << "RULE BODY HAS MULTIPLE PREDICATES!\n");
+  			  // LOG("ice", errs() << "RULE BODY HAS MULTIPLE PREDICATES!\n");
+  			  exit(3);
   		  }
   		  if(body_pred_apps.size() < 1)
   		  {
@@ -901,7 +907,8 @@ namespace seahorn
 	  FILE *fp;
 	  FILE *wp;
 	  wp = fopen("C5_temp","w+");
-	  std::string command = "/home/chenguang/Desktop/C50-ICE/C50/c5.0dbg -I 1 -m 1 -f " + m_C5filename;
+	  std::string command = C5ExecPath + " -I 1 -m 1 -f " + m_C5filename;
+	  //std::string command = "/home/chenguang/Desktop/C50-ICE/C50/c5.0dbg -I 1 -m 1 -f " + m_C5filename;
 	  std::string access = "r";
 	  if((fp = popen(command.c_str(), access.c_str())) == NULL)
 	  {

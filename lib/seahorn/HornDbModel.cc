@@ -88,7 +88,7 @@ namespace seahorn
   void initDBModelFromFile(HornDbModel &dbModel, HornClauseDB &db, EZ3& z3, const char *fname)
   {
 	  Expr assert_conjunction = z3_from_smtlib_file(z3, fname);
-	  outs() << "ASSERTION CONJUNCTIONS: " << *assert_conjunction << "\n";
+	  LOG("validate-inv", outs()<< "ASSERTION CONJUNCTIONS: " << *assert_conjunction << "\n";);
 	  ExprMap fappTocandAppMap;
 	  ExprVector fapps;
 	  for(int i=0; i<assert_conjunction->arity(); i++)
@@ -105,7 +105,7 @@ namespace seahorn
 
 	  for(Expr rel : db.getRelations())
 	  {
-		  outs() << "CURRENT REL: " << *rel << "\n";
+		  LOG("validate-inv", outs() << "CURRENT REL: " << *rel << "\n";);
 		  for(ExprVector::iterator it = fapps.begin(); it != fapps.end(); ++it)
 		  {
 			  Expr fapp = *it;
@@ -127,8 +127,8 @@ namespace seahorn
 				  Expr rel_app = bind::fapp(rel, args);
 				  assert (rel_app == fapp);
 				  Expr cand_app = fappTocandAppMap.find(fapp)->second;
-				  outs() << "REL APP: " << *rel_app << "\n";
-				  outs() << "CAND APP: " << *cand_app << "\n";
+				  LOG("validate-inv", outs() << "REL APP: " << *rel_app << "\n";);
+				  LOG("validate-inv", outs() << "CAND APP: " << *cand_app << "\n";);
 				  dbModel.addDef(rel_app, cand_app);
 			  }
 		  }
