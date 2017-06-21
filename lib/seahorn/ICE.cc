@@ -658,7 +658,7 @@ namespace seahorn
 
   		  solver.assertExpr(extractTransitionRelation(r, db));
 
-  		  solver.toSmtLib(errs());
+  		  //solver.toSmtLib(errs());
   		  boost::tribool result = solver.solve();
   		  if(result != UNSAT)
   		  {
