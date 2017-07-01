@@ -855,6 +855,12 @@ namespace seahorn
   			  entry_pred = (*it).head();
   		  }
   	  }
+  	  // No assertions or discarded by LLVM front end.
+  	  if(entry_pred == NULL)
+  	  {
+  		  LOG("ice", errs() << "NO ENTRY PREDICATES, CAN NOT RUN ICE!\n";);
+  		  exit(6);
+  	  }
   	  LOG("ice", errs() << "ENTRY IS: " << *entry_pred << "\n";);
 
   	  for(Expr rel : db.getRelations())
